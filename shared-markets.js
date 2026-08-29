@@ -39,6 +39,10 @@ function pushRuntime(game){
         return state.markets.filter(m=>(!m.status || m.status==='open') && (activeCat==='All'||m.category===activeCat) && (!q||m.title.toLowerCase().includes(q)||m.category.toLowerCase().includes(q)));
       };
       render();
+      const activeMarkets=state.markets.filter(m=>!m.status || m.status==='open');
+      marketCount.textContent=activeMarkets.length;
+      volumeTotal.textContent='◈ '+fmt(activeMarkets.reduce((a,m)=>a+marketVolume(m),0));
+      positionsCount.textContent=state.positions.filter(p=>!p.settled).length;
     `);
     delete window.__freemarketCloudState;
   }catch(e){
@@ -74,7 +78,6 @@ function applyMarketSnapshot(snapshot){
     });
   }
 
-  // Keep any local seed market that has not reached Firestore yet.
   for(const local of game.markets){
     if(!map.has(local.id))merged.push(local);
   }
