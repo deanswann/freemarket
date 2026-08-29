@@ -1,64 +1,218 @@
 <!doctype html>
 <html lang="en">
 <head>
-<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
 <title>FreeMarket Admin</title>
 <style>
-body{margin:0;font-family:Inter,system-ui,sans-serif;background:#0b0d10;color:#f5f7fa}.wrap{max-width:860px;margin:0 auto;padding:32px 20px}.card{background:#11151a;border:1px solid #252c35;border-radius:16px;padding:20px;margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;box-sizing:border-box;background:#151a20;color:white;border:1px solid #2a323b;border-radius:10px;padding:11px}textarea{min-height:90px}.full{grid-column:1/-1}.btn{padding:11px 14px;border:0;border-radius:10px;background:#18c37e;color:#07110d;font-weight:800;cursor:pointer}.danger{background:#ff5b6e;color:white}.muted{color:#9aa5b1}.hidden{display:none}.status{padding:10px 12px;border-radius:10px;background:#151a20;margin-top:12px;white-space:pre-wrap}@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+:root{--bg:#0b0d10;--panel:#11151a;--panel2:#151a20;--border:#252c35;--text:#f5f7fa;--muted:#9aa5b1;--green:#18c37e;--red:#ff5b6e;--amber:#f1b84b}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}.wrap{max-width:1180px;margin:0 auto;padding:30px 20px 60px}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}.top h1{margin:0 0 6px;font-size:30px}.muted{color:var(--muted)}.back{color:#b9c3cc;text-decoration:none;border:1px solid var(--border);padding:9px 12px;border-radius:9px;background:var(--panel)}.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}.hidden{display:none!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}input,select,textarea{width:100%;background:var(--panel2);color:white;border:1px solid #2a323b;border-radius:10px;padding:11px;outline:none}textarea{min-height:90px;resize:vertical}.btn{border:0;border-radius:9px;padding:10px 12px;font-weight:800;cursor:pointer;background:var(--green);color:#07110d}.btn.secondary{background:#222a32;color:#fff;border:1px solid #303a45}.btn.danger{background:var(--red);color:#fff}.btn:disabled{opacity:.4;cursor:not-allowed}.status{padding:11px 13px;border-radius:10px;background:var(--panel2);border:1px solid var(--border);white-space:pre-wrap;margin-bottom:16px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.stat{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}.stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.stat strong{font-size:24px}.section-head{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:14px}.section-head h2{margin:0}.tools{display:flex;gap:8px;flex-wrap:wrap}.tools input{width:min(330px,60vw)}.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px}.table{min-width:920px}.row{display:grid;grid-template-columns:2.5fr .8fr .65fr .8fr 1.1fr 1fr;gap:12px;align-items:center;padding:13px 14px;border-top:1px solid var(--border)}.row:first-child{border-top:0}.head{background:#0f1318;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px}.market-title{font-weight:750}.market-id{font-size:11px;color:var(--muted);margin-top:4px}.badge{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase}.badge.open{background:#0d2a20;color:#8ce7bd}.badge.closed{background:#332918;color:#ffd78a}.badge.resolving{background:#332918;color:#ffd78a}.badge.resolved{background:#252b32;color:#bdc7d0}.actions{display:flex;gap:6px;justify-content:flex-end}.actions .btn{padding:7px 9px;font-size:12px}.empty{padding:30px;text-align:center;color:var(--muted)}.manage{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}.manage-title{font-weight:800;margin-bottom:5px}.manage-meta{color:var(--muted);font-size:12px;line-height:1.55}.manage-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.rule{background:var(--panel2);border:1px solid var(--border);padding:11px;border-radius:9px;margin-top:10px;font-size:13px;line-height:1.5}.success{color:#9af0c8}.error{color:#ff9aa6}@media(max-width:760px){.top{flex-direction:column}.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.full{grid-column:auto}.tools{width:100%}.tools input{width:100%}}
 </style>
 </head>
-<body><div class="wrap">
-<h1>FreeMarket Admin</h1><p class="muted">This page is only a UI. Every privileged action is verified again by Firebase on the server.</p>
-<div id="denied" class="card"><b>Checking admin access…</b></div>
-<div id="panel" class="hidden">
-  <div class="card">
-    <h2>Create market</h2>
-    <div class="grid">
-      <input id="id" placeholder="market-id">
-      <select id="category"><option>Sports</option><option>Politics</option><option>Economy</option><option>Markets</option><option>Technology</option><option>Space</option><option>Culture</option></select>
-      <input id="prior" type="number" min="1" max="99" value="50" placeholder="Opening YES probability">
-      <input id="closeAt" type="datetime-local">
-      <input id="title" class="full" placeholder="Market question">
-      <textarea id="resolutionRule" class="full" placeholder="Exact resolution rule"></textarea>
-      <input id="source" class="full" placeholder="Official/source URL or source description">
-      <button class="btn full" onclick="createMarket()">Create market</button>
+<body>
+<div class="wrap">
+  <div class="top">
+    <div><h1>FreeMarket Admin</h1><div class="muted">Market management. Every write is verified again by Firebase on the server.</div></div>
+    <a class="back" href="./">← FreeMarket</a>
+  </div>
+
+  <div id="denied" class="card"><b>Checking admin access…</b></div>
+
+  <div id="panel" class="hidden">
+    <div class="stats">
+      <div class="stat"><span>Open markets</span><strong id="statOpen">0</strong></div>
+      <div class="stat"><span>Closed</span><strong id="statClosed">0</strong></div>
+      <div class="stat"><span>Resolved</span><strong id="statResolved">0</strong></div>
+      <div class="stat"><span>Total play volume</span><strong id="statVolume">◈ 0</strong></div>
+    </div>
+
+    <div id="status" class="status">Ready.</div>
+
+    <div class="card">
+      <h2>Create market</h2>
+      <div class="grid">
+        <input id="marketId" placeholder="market-id" autocomplete="off">
+        <select id="category"><option>Sports</option><option>Politics</option><option>Economy</option><option>Markets</option><option>Technology</option><option>Space</option><option>Culture</option></select>
+        <input id="prior" type="number" min="1" max="99" value="50" placeholder="Opening YES probability">
+        <input id="closeAt" type="datetime-local">
+        <input id="title" class="full" placeholder="Market question">
+        <textarea id="resolutionRule" class="full" placeholder="Exact resolution rule"></textarea>
+        <input id="source" class="full" placeholder="Official/source URL or source description">
+        <button id="createBtn" class="btn full" type="button">Create market</button>
+      </div>
+    </div>
+
+    <div class="card">
+      <div class="section-head">
+        <h2>Markets</h2>
+        <div class="tools">
+          <input id="search" placeholder="Search question or market ID">
+          <select id="statusFilter"><option value="all">All statuses</option><option value="open">Open</option><option value="closed">Closed</option><option value="resolved">Resolved</option></select>
+        </div>
+      </div>
+      <div class="table-wrap">
+        <div class="table">
+          <div class="row head"><div>Market</div><div>Category</div><div>YES</div><div>Volume</div><div>Status / closes</div><div></div></div>
+          <div id="marketRows"><div class="empty">Loading markets…</div></div>
+        </div>
+      </div>
+      <div id="manageBox" class="manage hidden"></div>
     </div>
   </div>
-  <div class="card">
-    <h2>Close / Resolve market</h2>
-    <div class="grid">
-      <input id="resolveId" placeholder="market-id">
-      <select id="result"><option>YES</option><option>NO</option></select>
-      <button class="btn" onclick="closeMarket()">Close betting</button>
-      <button class="btn danger" onclick="resolveMarket()">Resolve + pay winners</button>
-    </div>
-  </div>
-  <div id="status" class="status">Ready.</div>
 </div>
-</div>
+
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
 import { getAuth, onAuthStateChanged, getIdTokenResult } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
+import { getFirestore, collection, onSnapshot } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js';
-const app=initializeApp({apiKey:'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',authDomain:'freemarket-68274.firebaseapp.com',projectId:'freemarket-68274',storageBucket:'freemarket-68274.firebasestorage.app',messagingSenderId:'130108525153',appId:'1:130108525153:web:69fcce32c2f6eefbb93820',measurementId:'G-F6N8GLFK45'});
-const auth=getAuth(app),functions=getFunctions(app);
-const createMarketFn=httpsCallable(functions,'createMarket'),resolveMarketFn=httpsCallable(functions,'resolveMarket'),closeMarketFn=httpsCallable(functions,'closeMarket');
-const status=t=>document.getElementById('status').textContent=t;
-onAuthStateChanged(auth,async user=>{
-  const denied=document.getElementById('denied'),panel=document.getElementById('panel');
-  if(!user){denied.innerHTML='<b>Not signed in.</b> Log in on FreeMarket first, then return here.';return;}
-  const token=await getIdTokenResult(user,true);
-  if(token.claims.admin!==true){denied.innerHTML='<b>Access denied.</b> This account is not an administrator.';return;}
-  denied.classList.add('hidden');panel.classList.remove('hidden');
-});
-window.createMarket=async()=>{
+
+const firebaseConfig={apiKey:'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',authDomain:'freemarket-68274.firebaseapp.com',projectId:'freemarket-68274',storageBucket:'freemarket-68274.firebasestorage.app',messagingSenderId:'130108525153',appId:'1:130108525153:web:69fcce32c2f6eefbb93820',measurementId:'G-F6N8GLFK45'};
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app),db=getFirestore(app),functions=getFunctions(app);
+const createMarketFn=httpsCallable(functions,'createMarket');
+const resolveMarketFn=httpsCallable(functions,'resolveMarket');
+const closeMarketFn=httpsCallable(functions,'closeMarket');
+const PRIOR_LIQUIDITY=2000;
+let markets=[];
+let selectedId=null;
+let unsubscribeMarkets=null;
+
+const $=id=>document.getElementById(id);
+const status=(text,type='')=>{const el=$('status');el.textContent=text;el.className='status '+type;};
+const fmt=n=>(Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:2});
+const ms=v=>v?.toMillis?.()??(v?.seconds?Number(v.seconds)*1000:Number(v)||0);
+
+function chance(m){
+  const priorLiquidity=Number(m.priorLiquidity)||PRIOR_LIQUIDITY;
+  const prior=Math.max(1,Math.min(99,Number(m.prior)||50));
+  const y=priorLiquidity*(prior/100)+(Number(m.yesStake)||0);
+  const n=priorLiquidity*(1-prior/100)+(Number(m.noStake)||0);
+  return Math.max(1,Math.min(99,Math.round(y/(y+n)*100)));
+}
+function activeStatus(m){return m.status||'open';}
+function closeLabel(m){const t=ms(m.closeAt)||Number(m.closeAtMs)||0;return t?new Date(t).toLocaleString():'No close time';}
+function button(label,cls,fn,disabled=false){const b=document.createElement('button');b.type='button';b.className='btn '+cls;b.textContent=label;b.disabled=disabled;b.addEventListener('click',fn);return b;}
+
+function updateStats(){
+  $('statOpen').textContent=markets.filter(m=>activeStatus(m)==='open').length;
+  $('statClosed').textContent=markets.filter(m=>['closed','resolving'].includes(activeStatus(m))).length;
+  $('statResolved').textContent=markets.filter(m=>activeStatus(m)==='resolved').length;
+  $('statVolume').textContent='◈ '+fmt(markets.reduce((a,m)=>a+(Number(m.yesStake)||0)+(Number(m.noStake)||0),0));
+}
+
+function renderRows(){
+  const q=$('search').value.trim().toLowerCase();
+  const filter=$('statusFilter').value;
+  const list=markets.filter(m=>{
+    const s=activeStatus(m);
+    const statusMatch=filter==='all'||(filter==='closed'&&['closed','resolving'].includes(s))||s===filter;
+    const searchMatch=!q||String(m.title||'').toLowerCase().includes(q)||String(m.id||'').toLowerCase().includes(q);
+    return statusMatch&&searchMatch;
+  }).sort((a,b)=>{
+    const order={open:0,closed:1,resolving:1,resolved:2};
+    return (order[activeStatus(a)]??9)-(order[activeStatus(b)]??9)||(ms(a.closeAt)-ms(b.closeAt));
+  });
+
+  const root=$('marketRows');root.replaceChildren();
+  if(!list.length){const e=document.createElement('div');e.className='empty';e.textContent='No markets match this filter.';root.appendChild(e);return;}
+
+  for(const m of list){
+    const row=document.createElement('div');row.className='row';
+    const info=document.createElement('div');
+    const title=document.createElement('div');title.className='market-title';title.textContent=m.title||m.id;
+    const id=document.createElement('div');id.className='market-id';id.textContent=m.id;
+    info.append(title,id);
+    const cat=document.createElement('div');cat.textContent=m.category||'Other';
+    const yes=document.createElement('div');yes.textContent=chance(m)+'%';
+    const vol=document.createElement('div');vol.textContent='◈ '+fmt((Number(m.yesStake)||0)+(Number(m.noStake)||0));
+    const stat=document.createElement('div');
+    const badge=document.createElement('span');badge.className='badge '+activeStatus(m);badge.textContent=activeStatus(m)+(m.result?' · '+m.result:'');
+    const closes=document.createElement('div');closes.className='market-id';closes.textContent=closeLabel(m);stat.append(badge,closes);
+    const actions=document.createElement('div');actions.className='actions';actions.appendChild(button('Manage','secondary',()=>selectMarket(m.id)));
+    row.append(info,cat,yes,vol,stat,actions);root.appendChild(row);
+  }
+}
+
+function selectMarket(id){selectedId=id;renderManage();$('manageBox').scrollIntoView({behavior:'smooth',block:'nearest'});}
+function renderManage(){
+  const box=$('manageBox');const m=markets.find(x=>x.id===selectedId);
+  if(!m){box.classList.add('hidden');box.replaceChildren();return;}
+  box.classList.remove('hidden');box.replaceChildren();
+  const t=document.createElement('div');t.className='manage-title';t.textContent=m.title||m.id;
+  const meta=document.createElement('div');meta.className='manage-meta';meta.textContent=`${m.id} · ${m.category||'Other'} · YES ${chance(m)}% · Volume ◈ ${fmt((Number(m.yesStake)||0)+(Number(m.noStake)||0))} · ${activeStatus(m).toUpperCase()} · Closes ${closeLabel(m)}`;
+  const rule=document.createElement('div');rule.className='rule';
+  const r1=document.createElement('div');r1.textContent='Resolution rule: '+(m.resolutionRule||'—');
+  const r2=document.createElement('div');r2.style.marginTop='7px';r2.textContent='Source: '+(m.source||'—');rule.append(r1,r2);
+  const a=document.createElement('div');a.className='manage-actions';
+  const s=activeStatus(m);
+  a.appendChild(button('Close betting','secondary',()=>closeSelected(m),s!=='open'));
+  a.appendChild(button('Resolve YES','',()=>resolveSelected(m,'YES'),s==='resolved'));
+  a.appendChild(button('Resolve NO','danger',()=>resolveSelected(m,'NO'),s==='resolved'));
+  box.append(t,meta,rule,a);
+}
+
+async function closeSelected(m){
+  if(activeStatus(m)!=='open')return;
+  if(!confirm(`Close betting for “${m.title}”?`))return;
+  try{status('Closing market…');await closeMarketFn({marketId:m.id});status(`Closed: ${m.id}`,'success');}
+  catch(e){status('ERROR: '+(e.message||e),'error');}
+}
+async function resolveSelected(m,result){
+  if(activeStatus(m)==='resolved')return;
+  const ok=confirm(`Resolve “${m.title}” as ${result}?\n\nThis settles positions and pays winners. Verify the official result first.`);
+  if(!ok)return;
   try{
-    status('Creating…');
-    const closeAtMs=new Date(document.getElementById('closeAt').value).getTime();
-    const res=await createMarketFn({id:id.value,title:title.value,category:category.value,prior:Number(prior.value),closeAtMs,resolutionRule:resolutionRule.value,source:source.value});
-    status('Created: '+res.data.id);
-  }catch(e){status('ERROR: '+(e.message||e));}
-};
-window.closeMarket=async()=>{try{status('Closing…');await closeMarketFn({marketId:resolveId.value});status('Market closed.');}catch(e){status('ERROR: '+(e.message||e));}};
-window.resolveMarket=async()=>{try{if(!confirm('Resolve this market and pay winners? This should only be done after verifying the official result.'))return;status('Resolving and paying…');const res=await resolveMarketFn({marketId:resolveId.value,result:result.value});status(JSON.stringify(res.data,null,2));}catch(e){status('ERROR: '+(e.message||e));}};
-</script></body></html>
+    status(`Resolving ${m.id} as ${result} and paying winners…`);
+    const res=await resolveMarketFn({marketId:m.id,result});
+    const d=res.data||{};
+    status(`Resolved ${m.id} as ${result}.\nSettled positions: ${d.settledPositions??0}\nPaid users: ${d.paidUsers??0}\nTotal payout: ◈ ${fmt(d.totalPayout)}`,'success');
+  }catch(e){status('ERROR: '+(e.message||e),'error');}
+}
+
+async function createMarket(){
+  const payload={
+    id:$('marketId').value.trim(),
+    title:$('title').value.trim(),
+    category:$('category').value,
+    prior:Number($('prior').value),
+    closeAtMs:new Date($('closeAt').value).getTime(),
+    resolutionRule:$('resolutionRule').value.trim(),
+    source:$('source').value.trim()
+  };
+  if(!payload.id||!payload.title||!payload.resolutionRule||!payload.source||!Number.isFinite(payload.closeAtMs)){
+    status('ERROR: Fill in every market field, including a valid closing date/time.','error');return;
+  }
+  const btn=$('createBtn');btn.disabled=true;
+  try{
+    status('Creating market…');
+    const res=await createMarketFn(payload);
+    status('Created: '+res.data.id,'success');
+    $('marketId').value='';$('title').value='';$('resolutionRule').value='';$('source').value='';$('prior').value='50';$('closeAt').value='';
+  }catch(e){status('ERROR: '+(e.message||e),'error');}
+  finally{btn.disabled=false;}
+}
+
+function startMarkets(){
+  if(unsubscribeMarkets)unsubscribeMarkets();
+  unsubscribeMarkets=onSnapshot(collection(db,'markets'),snap=>{
+    markets=snap.docs.map(d=>({id:d.id,...d.data()}));
+    updateStats();renderRows();renderManage();
+  },e=>status('ERROR loading markets: '+(e.message||e),'error'));
+}
+
+$('createBtn').addEventListener('click',createMarket);
+$('search').addEventListener('input',renderRows);
+$('statusFilter').addEventListener('change',renderRows);
+
+onAuthStateChanged(auth,async user=>{
+  const denied=$('denied'),panel=$('panel');
+  if(!user){denied.textContent='Not signed in. Log in on FreeMarket first, then return here.';return;}
+  try{
+    const token=await getIdTokenResult(user,true);
+    if(token.claims.admin!==true){denied.textContent='Access denied. This account is not an administrator.';return;}
+    denied.classList.add('hidden');panel.classList.remove('hidden');startMarkets();
+  }catch(e){denied.textContent='Admin check failed: '+(e.message||e);}
+});
+</script>
+</body>
+</html>
