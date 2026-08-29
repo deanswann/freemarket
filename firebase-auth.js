@@ -61,12 +61,20 @@ window.registerAccount=async()=>{
   const email=document.getElementById('authEmail')?.value.trim();
   const password=document.getElementById('authPassword')?.value||'';
   if(!email||password.length<6){message('Enter a valid email and a password with at least 6 characters.');return;}
-  try{await createUserWithEmailAndPassword(auth,email,password);message('Account created.',true);setTimeout(window.closeAuth,500)}catch(e){message(e.message.replace('Firebase: ','').replace(/\(auth\/.+\)\.?/,'').trim())}
+  try{
+    await createUserWithEmailAndPassword(auth,email,password);
+    message('Account created.',true);
+    setTimeout(()=>location.reload(),350);
+  }catch(e){message(e.message.replace('Firebase: ','').replace(/\(auth\/.+\)\.?/,'').trim())}
 };
 window.loginAccount=async()=>{
   const email=document.getElementById('authEmail')?.value.trim();
   const password=document.getElementById('authPassword')?.value||'';
-  try{await signInWithEmailAndPassword(auth,email,password);message('Logged in.',true);setTimeout(window.closeAuth,500)}catch(e){message('Email or password is incorrect.')}
+  try{
+    await signInWithEmailAndPassword(auth,email,password);
+    message('Logged in.',true);
+    setTimeout(()=>location.reload(),350);
+  }catch(e){message('Email or password is incorrect.')}
 };
 window.logoutAccount=()=>signOut(auth);
 
