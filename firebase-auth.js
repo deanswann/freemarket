@@ -27,12 +27,24 @@ function message(text,ok=false){
 function readLocalGame(){try{return JSON.parse(localStorage.getItem('freemarket-v4'))||null}catch(e){return null}}
 function writeLocalAccount(account){
   const current=readLocalGame()||{};
-  const before=JSON.stringify({balance:current.balance,positions:current.positions});
   current.balance=Number.isFinite(account?.balance)?account.balance:10000;
   current.positions=Array.isArray(account?.positions)?account.positions:[];
   localStorage.setItem('freemarket-v4',JSON.stringify(current));
-  const after=JSON.stringify({balance:current.balance,positions:current.positions});
-  return before!==after;
+  return current;
+}
+
+function pushAccountToRuntime(account){
+  try{
+    window.__freemarketAccount=account;
+    window.eval(`
+      state.balance = Number.isFinite(window.__freemarketAccount.balance) ? window.__freemarketAccount.balance : state.balance;
+      state.positions = Array.isArray(window.__freemarketAccount.positions) ? window.__freemarketAccount.positions : state.positions;
+      render();
+    `);
+    delete window.__freemarketAccount;
+  }catch(e){
+    console.error('Runtime account refresh failed',e);
+  }
 }
 
 async function ensureCloudAccount(user){
@@ -48,8 +60,9 @@ function watchAccount(ref){
   if(unsubscribeUser)unsubscribeUser();
   unsubscribeUser=onSnapshot(ref,snap=>{
     if(!snap.exists())return;
-    const changed=writeLocalAccount(snap.data());
-    if(changed){location.reload();return;}
+    const account=snap.data();
+    writeLocalAccount(account);
+    pushAccountToRuntime(account);
     const notice=document.querySelector('.hero-side .notice');
     if(notice)notice.innerHTML='<b>Secure cloud account:</b> balance and portfolio are server-authoritative and sync across devices. Bets and global market state are handled through the protected backend.';
   },e=>console.error('Account listener failed',e));
@@ -96,4 +109,4 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
-import('./shared-markets.js?v=20260829-3').catch(e=>console.error('Shared markets module failed',e));
+import('./shared-markets.js?v=20260829-4').catch(e=>console.error('Shared markets module failed',e));
