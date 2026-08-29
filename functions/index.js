@@ -1,6 +1,7 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
+const { randomBytes } = require('node:crypto');
 
 initializeApp();
 const db = getFirestore();
@@ -203,6 +204,7 @@ exports.updatePublicProfile = onCall(async request => {
   const displayName=cleanDisplayName(request.data?.displayName);
   const leaderboardOptIn=request.data?.leaderboardOptIn===true;
   const key=displayNameKey(displayName);
+  const generatedPublicId=randomBytes(12).toString('hex');
   const userRef=db.collection('users').doc(auth.uid);
   const nameRef=db.collection('profileNames').doc(key);
 
@@ -219,8 +221,9 @@ exports.updatePublicProfile = onCall(async request => {
       if(oldSnap.exists&&oldSnap.data()?.uid===auth.uid)tx.delete(oldRef);
     }
 
+    const publicId=String(userData.publicId||generatedPublicId);
     tx.set(nameRef,{uid:auth.uid,displayName,updatedAt:FieldValue.serverTimestamp()});
-    tx.update(userRef,{displayName,displayNameKey:key,leaderboardOptIn,updatedAt:FieldValue.serverTimestamp()});
+    tx.update(userRef,{displayName,displayNameKey:key,publicId,leaderboardOptIn,updatedAt:FieldValue.serverTimestamp()});
   });
 
   return {ok:true,displayName,leaderboardOptIn};
@@ -247,21 +250,22 @@ exports.getLeaderboard = onCall(async request => {
     const data=userDoc.data();
     if(data.leaderboardOptIn!==true)continue;
     const displayName=String(data.displayName||'').trim();
-    if(!displayName)continue;
+    const publicId=String(data.publicId||'').trim();
+    if(!displayName||!publicId)continue;
     const stats=publicStats(data);
-    rows.push({uid:userDoc.id,displayName,stats});
+    rows.push({publicId,displayName,stats});
   }
   rows.sort((a,b)=>b.stats.profit-a.stats.profit||b.stats.winRate-a.stats.winRate||b.stats.resolved-a.stats.resolved||a.displayName.localeCompare(b.displayName));
   return {rows:rows.slice(0,100).map((r,i)=>({rank:i+1,...r}))};
 });
 
 exports.getPublicProfile = onCall(async request => {
-  const uid=cleanText(request.data?.uid,160);
-  const snap=await db.collection('users').doc(uid).get();
-  if(!snap.exists) throw new HttpsError('not-found','Profile not found.');
-  const data=snap.data();
+  const publicId=cleanText(request.data?.publicId,80);
+  const result=await db.collection('users').where('publicId','==',publicId).limit(1).get();
+  if(result.empty) throw new HttpsError('not-found','Profile not found.');
+  const data=result.docs[0].data();
   if(data.leaderboardOptIn!==true||!String(data.displayName||'').trim()) throw new HttpsError('not-found','Profile not public.');
-  return {uid,displayName:String(data.displayName).trim(),stats:publicStats(data)};
+  return {publicId,displayName:String(data.displayName).trim(),stats:publicStats(data)};
 });
 
 exports.closeMarket = onCall(async request => {
