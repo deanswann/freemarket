@@ -24,22 +24,29 @@ function message(text,ok=false){
   el.style.color=ok?'#9af0c8':'#ff9aa6';
 }
 
+function openPositions(account){
+  return Array.isArray(account?.positions)?account.positions.filter(p=>!p?.settled):[];
+}
+
 function readLocalGame(){try{return JSON.parse(localStorage.getItem('freemarket-v4'))||null}catch(e){return null}}
 function writeLocalAccount(account){
   const current=readLocalGame()||{};
   current.balance=Number.isFinite(account?.balance)?account.balance:10000;
-  current.positions=Array.isArray(account?.positions)?account.positions:[];
+  current.positions=openPositions(account);
   localStorage.setItem('freemarket-v4',JSON.stringify(current));
   return current;
 }
 
 function pushAccountToRuntime(account){
   try{
-    window.__freemarketAccount=account;
+    window.__freemarketAccount={...account,positions:openPositions(account)};
     window.eval(`
       state.balance = Number.isFinite(window.__freemarketAccount.balance) ? window.__freemarketAccount.balance : state.balance;
       state.positions = Array.isArray(window.__freemarketAccount.positions) ? window.__freemarketAccount.positions : state.positions;
       render();
+      const activeMarkets=state.markets.filter(m=>!m.status || m.status==='open');
+      marketCount.textContent=activeMarkets.length;
+      positionsCount.textContent=state.positions.length;
     `);
     delete window.__freemarketAccount;
   }catch(e){
@@ -109,4 +116,4 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
-import('./shared-markets.js?v=20260829-4').catch(e=>console.error('Shared markets module failed',e));
+import('./shared-markets.js?v=20260829-5').catch(e=>console.error('Shared markets module failed',e));
