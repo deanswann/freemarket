@@ -175,7 +175,7 @@ onAuthStateChanged(auth,async user=>{
         return;
       }
       const notice=document.querySelector('.hero-side .notice');
-      if(notice)notice.innerHTML='<b>Cloud account connected:</b> balance and portfolio are loaded from Firestore and changes sync automatically across devices. Market-wide activity is still local until the shared market backend is added.';
+      if(notice)notice.innerHTML='<b>Cloud account connected:</b> balance and portfolio are loaded from Firestore and changes sync automatically across devices. Global market odds and volume are shared through Firestore when market rules are enabled.';
     }catch(e){
       console.error('Firestore account setup failed',e);
       const notice=document.querySelector('.hero-side .notice');
@@ -188,3 +188,5 @@ onAuthStateChanged(auth,async user=>{
     if(userEmail)userEmail.textContent='';
   }
 });
+
+import('./shared-markets.js').catch(e=>console.error('Shared markets module failed',e));
