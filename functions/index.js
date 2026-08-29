@@ -53,7 +53,8 @@ exports.placeBet = onCall(async request => {
     if(!userSnap.exists) throw new HttpsError('failed-precondition','Account not found.');
 
     const market=marketSnap.data();
-    if(market.status!=='open') throw new HttpsError('failed-precondition','Market is closed.');
+    const marketStatus=market.status||'open';
+    if(marketStatus!=='open') throw new HttpsError('failed-precondition','Market is closed.');
     const closeAt=market.closeAt?.toMillis?market.closeAt.toMillis():Number(market.closeAtMs)||0;
     if(closeAt&&Date.now()>=closeAt) throw new HttpsError('failed-precondition','Market has reached its closing time.');
 
@@ -70,9 +71,11 @@ exports.placeBet = onCall(async request => {
     tx.update(userRef,{balance:balance-amount,positions,updatedAt:FieldValue.serverTimestamp()});
     tx.update(marketRef,side==='YES'?{
       yesStake:(Number(market.yesStake)||0)+amount,
+      status:marketStatus,
       updatedAt:FieldValue.serverTimestamp()
     }:{
       noStake:(Number(market.noStake)||0)+amount,
+      status:marketStatus,
       updatedAt:FieldValue.serverTimestamp()
     });
 
