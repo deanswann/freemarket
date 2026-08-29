@@ -29,63 +29,52 @@ function cloudTimeMs(value){
   return Number(value)||0;
 }
 
-function syncRuntimeFromLocal(){
+function pushRuntime(game){
   try{
-    window.eval("state = JSON.parse(localStorage.getItem('freemarket-v4')); render()");
+    window.__freemarketCloudState=game;
+    window.eval('state = window.__freemarketCloudState; render();');
+    delete window.__freemarketCloudState;
   }catch(e){
     console.error('Runtime market refresh failed',e);
   }
 }
 
 function applyMarketSnapshot(snapshot){
-  const game=readLocal();
-  if(!game?.markets)return;
+  const game=readLocal()||{balance:10000,positions:[],markets:[]};
+  if(!Array.isArray(game.markets))game.markets=[];
+  if(!Array.isArray(game.positions))game.positions=[];
   const map=new Map(snapshot.docs.map(d=>[d.id,{id:d.id,...d.data()}]));
-  let changed=false;
 
-  game.markets=game.markets.map(m=>{
-    const cloud=map.get(m.id);
-    if(!cloud)return m;
-    const next={
-      ...m,
-      title:cloud.title||m.title,
-      category:cloud.category||m.category,
-      prior:Number(cloud.prior)||m.prior||50,
-      yesStake:Number(cloud.yesStake)||0,
-      noStake:Number(cloud.noStake)||0,
-      status:cloud.status||'open',
-      result:cloud.result||null,
-      closeAtMs:cloudTimeMs(cloud.closeAt)||Number(cloud.closeAtMs)||0,
-      resolutionRule:cloud.resolutionRule||'',
-      source:cloud.source||''
-    };
-    if(JSON.stringify(next)!==JSON.stringify(m))changed=true;
-    return next;
-  });
+  const localMap=new Map(game.markets.map(m=>[m.id,m]));
+  const merged=[];
 
   for(const [id,cloud] of map){
-    if(game.markets.some(m=>m.id===id))continue;
-    game.markets.push({
+    const local=localMap.get(id)||{};
+    merged.push({
+      ...local,
       id,
-      title:cloud.title||id,
-      category:cloud.category||'Other',
-      ends:cloud.closeAt?.toDate?cloud.closeAt.toDate().toLocaleString(): '',
-      prior:Number(cloud.prior)||50,
+      title:cloud.title||local.title||id,
+      category:cloud.category||local.category||'Other',
+      ends:cloud.closeAt?.toDate?cloud.closeAt.toDate().toLocaleString():local.ends||'',
+      prior:Number(cloud.prior)||Number(local.prior)||50,
       yesStake:Number(cloud.yesStake)||0,
       noStake:Number(cloud.noStake)||0,
       status:cloud.status||'open',
       result:cloud.result||null,
-      closeAtMs:cloudTimeMs(cloud.closeAt)||0,
-      resolutionRule:cloud.resolutionRule||'',
-      source:cloud.source||''
+      closeAtMs:cloudTimeMs(cloud.closeAt)||Number(cloud.closeAtMs)||Number(local.closeAtMs)||0,
+      resolutionRule:cloud.resolutionRule||local.resolutionRule||'',
+      source:cloud.source||local.source||''
     });
-    changed=true;
   }
 
-  if(changed){
-    writeLocal(game);
-    syncRuntimeFromLocal();
+  // Keep any local seed market that has not reached Firestore yet.
+  for(const local of game.markets){
+    if(!map.has(local.id))merged.push(local);
   }
+
+  game.markets=merged;
+  writeLocal(game);
+  pushRuntime(game);
 }
 
 async function placeSharedTradeFromUi(){
