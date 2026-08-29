@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8"><meta name="viewport" content="width=device-width,initial-scale=1">
+<title>FreeMarket Admin</title>
+<style>
+body{margin:0;font-family:Inter,system-ui,sans-serif;background:#0b0d10;color:#f5f7fa}.wrap{max-width:860px;margin:0 auto;padding:32px 20px}.card{background:#11151a;border:1px solid #252c35;border-radius:16px;padding:20px;margin-bottom:16px}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}input,select,textarea,button{font:inherit}input,select,textarea{width:100%;box-sizing:border-box;background:#151a20;color:white;border:1px solid #2a323b;border-radius:10px;padding:11px}textarea{min-height:90px}.full{grid-column:1/-1}.btn{padding:11px 14px;border:0;border-radius:10px;background:#18c37e;color:#07110d;font-weight:800;cursor:pointer}.danger{background:#ff5b6e;color:white}.muted{color:#9aa5b1}.hidden{display:none}.status{padding:10px 12px;border-radius:10px;background:#151a20;margin-top:12px;white-space:pre-wrap}@media(max-width:650px){.grid{grid-template-columns:1fr}.full{grid-column:auto}}
+</style>
+</head>
+<body><div class="wrap">
+<h1>FreeMarket Admin</h1><p class="muted">This page is only a UI. Every privileged action is verified again by Firebase on the server.</p>
+<div id="denied" class="card"><b>Checking admin access…</b></div>
+<div id="panel" class="hidden">
+  <div class="card">
+    <h2>Create market</h2>
+    <div class="grid">
+      <input id="id" placeholder="market-id">
+      <select id="category"><option>Sports</option><option>Politics</option><option>Economy</option><option>Markets</option><option>Technology</option><option>Space</option><option>Culture</option></select>
+      <input id="prior" type="number" min="1" max="99" value="50" placeholder="Opening YES probability">
+      <input id="closeAt" type="datetime-local">
+      <input id="title" class="full" placeholder="Market question">
+      <textarea id="resolutionRule" class="full" placeholder="Exact resolution rule"></textarea>
+      <input id="source" class="full" placeholder="Official/source URL or source description">
+      <button class="btn full" onclick="createMarket()">Create market</button>
+    </div>
+  </div>
+  <div class="card">
+    <h2>Close / Resolve market</h2>
+    <div class="grid">
+      <input id="resolveId" placeholder="market-id">
+      <select id="result"><option>YES</option><option>NO</option></select>
+      <button class="btn" onclick="closeMarket()">Close betting</button>
+      <button class="btn danger" onclick="resolveMarket()">Resolve + pay winners</button>
+    </div>
+  </div>
+  <div id="status" class="status">Ready.</div>
+</div>
+</div>
+<script type="module">
+import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
+import { getAuth, onAuthStateChanged, getIdTokenResult } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js';
+const app=initializeApp({apiKey:'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',authDomain:'freemarket-68274.firebaseapp.com',projectId:'freemarket-68274',storageBucket:'freemarket-68274.firebasestorage.app',messagingSenderId:'130108525153',appId:'1:130108525153:web:69fcce32c2f6eefbb93820',measurementId:'G-F6N8GLFK45'});
+const auth=getAuth(app),functions=getFunctions(app);
+const createMarketFn=httpsCallable(functions,'createMarket'),resolveMarketFn=httpsCallable(functions,'resolveMarket'),closeMarketFn=httpsCallable(functions,'closeMarket');
+const status=t=>document.getElementById('status').textContent=t;
+onAuthStateChanged(auth,async user=>{
+  const denied=document.getElementById('denied'),panel=document.getElementById('panel');
+  if(!user){denied.innerHTML='<b>Not signed in.</b> Log in on FreeMarket first, then return here.';return;}
+  const token=await getIdTokenResult(user,true);
+  if(token.claims.admin!==true){denied.innerHTML='<b>Access denied.</b> This account is not an administrator.';return;}
+  denied.classList.add('hidden');panel.classList.remove('hidden');
+});
+window.createMarket=async()=>{
+  try{
+    status('Creating…');
+    const closeAtMs=new Date(document.getElementById('closeAt').value).getTime();
+    const res=await createMarketFn({id:id.value,title:title.value,category:category.value,prior:Number(prior.value),closeAtMs,resolutionRule:resolutionRule.value,source:source.value});
+    status('Created: '+res.data.id);
+  }catch(e){status('ERROR: '+(e.message||e));}
+};
+window.closeMarket=async()=>{try{status('Closing…');await closeMarketFn({marketId:resolveId.value});status('Market closed.');}catch(e){status('ERROR: '+(e.message||e));}};
+window.resolveMarket=async()=>{try{if(!confirm('Resolve this market and pay winners? This should only be done after verifying the official result.'))return;status('Resolving and paying…');const res=await resolveMarketFn({marketId:resolveId.value,result:result.value});status(JSON.stringify(res.data,null,2));}catch(e){status('ERROR: '+(e.message||e));}};
+</script></body></html>
