@@ -37,6 +37,40 @@ function marketChance(m){
   return Math.max(1,Math.min(99,Math.round((yes/(yes+no))*100)));
 }
 
+function publicStats(data){
+  const positions=Array.isArray(data?.positions)?data.positions:[];
+  const settled=positions.filter(p=>p&&p.settled===true);
+  let wins=0;
+  let losses=0;
+  let amountIn=0;
+  let payout=0;
+  for(const p of settled){
+    const amount=Math.max(0,Number(p.amount)||0);
+    const paid=Math.max(0,Number(p.payout)||0);
+    amountIn+=amount;
+    payout+=paid;
+    if(p.won===true)wins++;
+    else losses++;
+  }
+  const resolved=settled.length;
+  return {
+    resolved,
+    wins,
+    losses,
+    winRate:resolved?Math.round((wins/resolved)*1000)/10:0,
+    amountIn:Math.round(amountIn*100)/100,
+    payout:Math.round(payout*100)/100,
+    profit:Math.round((payout-amountIn)*100)/100
+  };
+}
+
+function cleanDisplayName(value){
+  const name=String(value||'').trim().replace(/\s+/g,' ');
+  if(name.length<3||name.length>24) throw new HttpsError('invalid-argument','Display name must be 3-24 characters.');
+  if(!/^[\p{L}\p{N} _.-]+$/u.test(name)) throw new HttpsError('invalid-argument','Display name contains unsupported characters.');
+  return name;
+}
+
 exports.placeBet = onCall(async request => {
   const auth=requireUser(request);
   const marketId=cleanText(request.data?.marketId,120);
@@ -158,6 +192,55 @@ exports.resolveMarket = onCall(async request => {
 
   await marketRef.update({status:'resolved',result,resolvedAt:market.resolvedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
   return {ok:true,marketId,result,paidUsers,settledPositions,totalPayout};
+});
+
+exports.updatePublicProfile = onCall(async request => {
+  const auth=requireUser(request);
+  const displayName=cleanDisplayName(request.data?.displayName);
+  const leaderboardOptIn=request.data?.leaderboardOptIn===true;
+  const ref=db.collection('users').doc(auth.uid);
+  const snap=await ref.get();
+  if(!snap.exists) throw new HttpsError('failed-precondition','Account not found.');
+  await ref.update({displayName,leaderboardOptIn,updatedAt:FieldValue.serverTimestamp()});
+  return {ok:true,displayName,leaderboardOptIn};
+});
+
+exports.getMyProfile = onCall(async request => {
+  const auth=requireUser(request);
+  const snap=await db.collection('users').doc(auth.uid).get();
+  if(!snap.exists) throw new HttpsError('failed-precondition','Account not found.');
+  const data=snap.data();
+  return {
+    displayName:String(data.displayName||''),
+    leaderboardOptIn:data.leaderboardOptIn===true,
+    balance:Number(data.balance)||0,
+    openPositions:(Array.isArray(data.positions)?data.positions:[]).filter(p=>!p?.settled).length,
+    stats:publicStats(data)
+  };
+});
+
+exports.getLeaderboard = onCall(async request => {
+  const users=await db.collection('users').get();
+  const rows=[];
+  for(const userDoc of users.docs){
+    const data=userDoc.data();
+    if(data.leaderboardOptIn!==true)continue;
+    const displayName=String(data.displayName||'').trim();
+    if(!displayName)continue;
+    const stats=publicStats(data);
+    rows.push({uid:userDoc.id,displayName,stats});
+  }
+  rows.sort((a,b)=>b.stats.profit-a.stats.profit||b.stats.winRate-a.stats.winRate||b.stats.resolved-a.stats.resolved||a.displayName.localeCompare(b.displayName));
+  return {rows:rows.slice(0,100).map((r,i)=>({rank:i+1,...r}))};
+});
+
+exports.getPublicProfile = onCall(async request => {
+  const uid=cleanText(request.data?.uid,160);
+  const snap=await db.collection('users').doc(uid).get();
+  if(!snap.exists) throw new HttpsError('not-found','Profile not found.');
+  const data=snap.data();
+  if(data.leaderboardOptIn!==true||!String(data.displayName||'').trim()) throw new HttpsError('not-found','Profile not public.');
+  return {uid,displayName:String(data.displayName).trim(),stats:publicStats(data)};
 });
 
 exports.closeMarket = onCall(async request => {
