@@ -5,6 +5,7 @@ const { randomBytes } = require('node:crypto');
 
 initializeApp();
 const db = getFirestore();
+const CASHOUT_FEE_RATE = 0.02;
 
 function requireUser(request){
   if(!request.auth) throw new HttpsError('unauthenticated','Log in first.');
@@ -36,16 +37,24 @@ function marketChance(m){
 function marketVolume(m){return (Number(m.yesStake)||0)+(Number(m.noStake)||0);}
 function publicStats(data){
   const positions=Array.isArray(data?.positions)?data.positions:[];
-  const settled=positions.filter(p=>p&&p.settled===true);
+  const closed=positions.filter(p=>p&&(p.settled===true||p.cashedOut===true));
+  const resolvedPositions=closed.filter(p=>p.cashedOut!==true && (p.result==='YES'||p.result==='NO'));
   let wins=0,losses=0,amountIn=0,payout=0;
-  for(const p of settled){
-    const amount=Math.max(0,Number(p.amount)||0);
-    const paid=Math.max(0,Number(p.payout)||0);
-    amountIn+=amount;payout+=paid;
-    if(p.won===true)wins++;else losses++;
+  for(const p of closed){
+    amountIn+=Math.max(0,Number(p.amount)||0);
+    payout+=Math.max(0,Number(p.payout)||0);
   }
-  const resolved=settled.length;
-  return {resolved,wins,losses,winRate:resolved?Math.round((wins/resolved)*1000)/10:0,amountIn:Math.round(amountIn*100)/100,payout:Math.round(payout*100)/100,profit:Math.round((payout-amountIn)*100)/100};
+  for(const p of resolvedPositions){
+    if(p.won===true)wins++; else losses++;
+  }
+  const resolved=resolvedPositions.length;
+  return {
+    resolved,wins,losses,
+    winRate:resolved?Math.round((wins/resolved)*1000)/10:0,
+    amountIn:Math.round(amountIn*100)/100,
+    payout:Math.round(payout*100)/100,
+    profit:Math.round((payout-amountIn)*100)/100
+  };
 }
 function cleanDisplayName(value){
   const name=String(value||'').trim().replace(/\s+/g,' ');
@@ -87,7 +96,7 @@ exports.placeBet = onCall(async request => {
     const price=side==='YES'?previousYesChance:100-previousYesChance;
     const shares=amount/(price/100);
     const positions=Array.isArray(user.positions)?user.positions.slice():[];
-    positions.push({marketId,side,amount,price,shares,time:timeMs,settled:false});
+    positions.push({positionId:randomBytes(8).toString('hex'),marketId,side,amount,price,shares,time:timeMs,settled:false,cashedOut:false});
 
     const nextMarket={...market};
     if(side==='YES') nextMarket.yesStake=(Number(market.yesStake)||0)+amount;
@@ -100,6 +109,79 @@ exports.placeBet = onCall(async request => {
     tx.set(historyRef,{timeMs,yesChance:newYesChance,volume:newVolume,previousYesChance,previousVolume,side,amount,kind:'bet'});
 
     return {ok:true,price,shares,balance:balance-amount,yesChance:newYesChance};
+  });
+});
+
+exports.cashOutPosition = onCall(async request => {
+  const auth=requireUser(request);
+  const marketId=cleanText(request.data?.marketId,120);
+  const positionIndex=Math.floor(Number(request.data?.positionIndex));
+  if(!Number.isInteger(positionIndex)||positionIndex<0) throw new HttpsError('invalid-argument','Invalid position.');
+
+  const marketRef=db.collection('markets').doc(marketId);
+  const userRef=db.collection('users').doc(auth.uid);
+  const historyRef=marketRef.collection('history').doc();
+  const timeMs=Date.now();
+
+  return db.runTransaction(async tx=>{
+    const [marketSnap,userSnap]=await Promise.all([tx.get(marketRef),tx.get(userRef)]);
+    if(!marketSnap.exists) throw new HttpsError('not-found','Market not found.');
+    if(!userSnap.exists) throw new HttpsError('failed-precondition','Account not found.');
+
+    const market=marketSnap.data();
+    const marketStatus=market.status||'open';
+    const closeAt=market.closeAt?.toMillis?market.closeAt.toMillis():Number(market.closeAtMs)||0;
+    if(marketStatus!=='open'||(closeAt&&Date.now()>=closeAt)) throw new HttpsError('failed-precondition','Cash out is only available while the market is open.');
+
+    const user=userSnap.data();
+    const positions=Array.isArray(user.positions)?user.positions.slice():[];
+    if(positionIndex>=positions.length) throw new HttpsError('not-found','Position not found.');
+    const p={...positions[positionIndex]};
+    if(String(p.marketId||'')!==marketId) throw new HttpsError('invalid-argument','Position does not belong to this market.');
+    if(p.settled===true||p.cashedOut===true) throw new HttpsError('failed-precondition','Position is already closed.');
+    const side=cleanSide(p.side);
+    const amount=Math.max(0,Number(p.amount)||0);
+    const shares=Math.max(0,Number(p.shares)||0);
+    if(amount<=0||shares<=0) throw new HttpsError('failed-precondition','Position cannot be cashed out.');
+
+    const previousYesChance=marketChance(market);
+    const previousVolume=marketVolume(market);
+    const nextMarket={...market};
+    if(side==='YES') nextMarket.yesStake=Math.max(0,(Number(market.yesStake)||0)-amount);
+    else nextMarket.noStake=Math.max(0,(Number(market.noStake)||0)-amount);
+
+    const newYesChance=marketChance(nextMarket);
+    const exitPrice=side==='YES'?newYesChance:100-newYesChance;
+    const gross=shares*(exitPrice/100);
+    const fee=gross*CASHOUT_FEE_RATE;
+    const payout=Math.max(0,gross-fee);
+    const oldBalance=Number(user.balance)||0;
+
+    p.settled=true;
+    p.cashedOut=true;
+    p.exitType='cashout';
+    p.cashoutTime=timeMs;
+    p.exitPrice=exitPrice;
+    p.cashoutGross=gross;
+    p.cashoutFee=fee;
+    p.payout=payout;
+    p.result='CASH OUT';
+    p.won=null;
+    positions[positionIndex]=p;
+
+    tx.update(userRef,{balance:oldBalance+payout,positions,updatedAt:FieldValue.serverTimestamp()});
+    tx.update(marketRef,side==='YES'?{yesStake:nextMarket.yesStake,updatedAt:FieldValue.serverTimestamp()}:{noStake:nextMarket.noStake,updatedAt:FieldValue.serverTimestamp()});
+    tx.set(historyRef,{timeMs,yesChance:newYesChance,volume:marketVolume(nextMarket),previousYesChance,previousVolume,side,amount,kind:'cashout'});
+
+    return {
+      ok:true,marketId,positionIndex,side,
+      exitPrice:Math.round(exitPrice*100)/100,
+      gross:Math.round(gross*100)/100,
+      fee:Math.round(fee*100)/100,
+      payout:Math.round(payout*100)/100,
+      balance:Math.round((oldBalance+payout)*100)/100,
+      yesChance:newYesChance
+    };
   });
 });
 
@@ -164,7 +246,7 @@ exports.resolveMarket = onCall(async request => {
     const positions=Array.isArray(data.positions)?data.positions.slice():[];
     let payout=0,changed=false;
     for(const p of positions){
-      if(p.marketId===marketId&&!p.settled){
+      if(p.marketId===marketId&&!p.settled&&!p.cashedOut){
         p.settled=true;p.result=result;p.won=p.side===result;p.payout=p.won?Number(p.shares)||0:0;
         if(p.won)payout+=p.payout;settledPositions++;changed=true;
       }
@@ -210,7 +292,7 @@ exports.getMyProfile = onCall(async request => {
   const snap=await db.collection('users').doc(auth.uid).get();
   if(!snap.exists) throw new HttpsError('failed-precondition','Account not found.');
   const data=snap.data();
-  return {displayName:String(data.displayName||''),leaderboardOptIn:data.leaderboardOptIn===true,balance:Number(data.balance)||0,openPositions:(Array.isArray(data.positions)?data.positions:[]).filter(p=>!p?.settled).length,stats:publicStats(data)};
+  return {displayName:String(data.displayName||''),leaderboardOptIn:data.leaderboardOptIn===true,balance:Number(data.balance)||0,openPositions:(Array.isArray(data.positions)?data.positions:[]).filter(p=>!p?.settled&&!p?.cashedOut).length,stats:publicStats(data)};
 });
 
 exports.getLeaderboard = onCall(async request => {
