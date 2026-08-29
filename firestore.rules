@@ -1,0 +1,29 @@
+rules_version = '2';
+
+service cloud.firestore {
+  match /databases/{database}/documents {
+
+    function signedIn() {
+      return request.auth != null;
+    }
+
+    function isAdmin() {
+      return signedIn() && request.auth.token.admin == true;
+    }
+
+    match /users/{userId} {
+      allow read: if signedIn() && request.auth.uid == userId;
+      allow create: if signedIn()
+                    && request.auth.uid == userId
+                    && request.resource.data.balance == 10000
+                    && request.resource.data.positions.size() == 0;
+      allow update: if false;
+      allow delete: if false;
+    }
+
+    match /markets/{marketId} {
+      allow read: if true;
+      allow create, update, delete: if false;
+    }
+  }
+}
