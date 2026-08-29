@@ -116,14 +116,19 @@ exports.resolveMarket = onCall(async request => {
   const marketSnap=await marketRef.get();
   if(!marketSnap.exists) throw new HttpsError('not-found','Market not found.');
   const market=marketSnap.data();
-  if(market.status==='resolved') throw new HttpsError('failed-precondition','Market already resolved.');
+  if(market.status==='resolved'&&market.result&&market.result!==result){
+    throw new HttpsError('failed-precondition','Market was already resolved with a different result.');
+  }
 
-  await marketRef.update({status:'resolving',result,updatedAt:FieldValue.serverTimestamp()});
+  if(market.status!=='resolved'){
+    await marketRef.update({status:'resolving',result,updatedAt:FieldValue.serverTimestamp()});
+  }
 
   const users=await db.collection('users').get();
   let batch=db.batch();
   let writes=0;
   let paidUsers=0;
+  let settledPositions=0;
   let totalPayout=0;
 
   for(const userDoc of users.docs){
@@ -138,6 +143,7 @@ exports.resolveMarket = onCall(async request => {
         p.won=p.side===result;
         p.payout=p.won?Number(p.shares)||0:0;
         if(p.won)payout+=p.payout;
+        settledPositions++;
         changed=true;
       }
     }
@@ -150,8 +156,8 @@ exports.resolveMarket = onCall(async request => {
   }
   if(writes>0)await batch.commit();
 
-  await marketRef.update({status:'resolved',result,resolvedAt:FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
-  return {ok:true,marketId,result,paidUsers,totalPayout};
+  await marketRef.update({status:'resolved',result,resolvedAt:market.resolvedAt||FieldValue.serverTimestamp(),updatedAt:FieldValue.serverTimestamp()});
+  return {ok:true,marketId,result,paidUsers,settledPositions,totalPayout};
 });
 
 exports.closeMarket = onCall(async request => {
