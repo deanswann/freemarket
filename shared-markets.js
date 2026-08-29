@@ -34,13 +34,15 @@ function pushRuntime(game){
     window.__freemarketCloudState=game;
     window.eval(`
       state = window.__freemarketCloudState;
-      const isPubliclyOpen = m => (!m.status || m.status==='open') && (!m.closeAtMs || Date.now()<m.closeAtMs);
+      window.__freemarketIsPubliclyOpen = function(m){
+        return (!m.status || m.status==='open') && (!m.closeAtMs || Date.now()<m.closeAtMs);
+      };
       filtered = function(){
         const q=document.getElementById('search').value.trim().toLowerCase();
-        return state.markets.filter(m=>isPubliclyOpen(m) && (activeCat==='All'||m.category===activeCat) && (!q||m.title.toLowerCase().includes(q)||m.category.toLowerCase().includes(q)));
+        return state.markets.filter(m=>window.__freemarketIsPubliclyOpen(m) && (activeCat==='All'||m.category===activeCat) && (!q||m.title.toLowerCase().includes(q)||m.category.toLowerCase().includes(q)));
       };
       render();
-      const activeMarkets=state.markets.filter(isPubliclyOpen);
+      const activeMarkets=state.markets.filter(window.__freemarketIsPubliclyOpen);
       marketCount.textContent=activeMarkets.length;
       volumeTotal.textContent='◈ '+fmt(activeMarkets.reduce((a,m)=>a+marketVolume(m),0));
       positionsCount.textContent=state.positions.filter(p=>!p.settled).length;
