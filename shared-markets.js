@@ -29,6 +29,14 @@ function cloudTimeMs(value){
   return Number(value)||0;
 }
 
+function syncRuntimeFromLocal(){
+  try{
+    window.eval("state = JSON.parse(localStorage.getItem('freemarket-v4')); render()");
+  }catch(e){
+    console.error('Runtime market refresh failed',e);
+  }
+}
+
 function applyMarketSnapshot(snapshot){
   const game=readLocal();
   if(!game?.markets)return;
@@ -74,7 +82,10 @@ function applyMarketSnapshot(snapshot){
     changed=true;
   }
 
-  if(changed){writeLocal(game);location.reload()}
+  if(changed){
+    writeLocal(game);
+    syncRuntimeFromLocal();
+  }
 }
 
 async function placeSharedTradeFromUi(){
