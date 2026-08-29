@@ -96,4 +96,4 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
-import('./shared-markets.js').catch(e=>console.error('Shared markets module failed',e));
+import('./shared-markets.js?v=20260829-3').catch(e=>console.error('Shared markets module failed',e));
