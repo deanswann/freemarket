@@ -17,6 +17,9 @@ const auth = getAuth(app);
 const db = getFirestore(app);
 let activeUser = null;
 let cloudReady = false;
+let lastCloudSnapshot = '';
+let saveInFlight = false;
+let saveAgain = false;
 
 function message(text, ok=false){
   const el=document.getElementById('authMessage');
@@ -32,18 +35,23 @@ function readLocalGame(){
   }catch(e){return null;}
 }
 
-function accountSnapshot(game){
-  return JSON.stringify({
+function normalizedAccount(game){
+  return {
     balance:Number.isFinite(game?.balance)?game.balance:10000,
     positions:Array.isArray(game?.positions)?game.positions:[]
-  });
+  };
+}
+
+function accountSnapshot(game){
+  return JSON.stringify(normalizedAccount(game));
 }
 
 function writeLocalAccount(account){
   const current=readLocalGame()||{};
   const before=accountSnapshot(current);
-  current.balance=Number.isFinite(account.balance)?account.balance:10000;
-  current.positions=Array.isArray(account.positions)?account.positions:[];
+  const clean=normalizedAccount(account);
+  current.balance=clean.balance;
+  current.positions=clean.positions;
   localStorage.setItem('freemarket-v4',JSON.stringify(current));
   return before!==accountSnapshot(current);
 }
@@ -51,38 +59,56 @@ function writeLocalAccount(account){
 async function ensureCloudAccount(user){
   const ref=doc(db,'users',user.uid);
   const snap=await getDoc(ref);
+  let account;
+
   if(!snap.exists()){
-    const account={
+    account={balance:10000,positions:[]};
+    await setDoc(ref,{
       email:user.email||'',
-      balance:10000,
-      positions:[],
+      ...account,
       createdAt:serverTimestamp(),
       updatedAt:serverTimestamp()
-    };
-    await setDoc(ref,account);
-    return {changed:writeLocalAccount(account)};
+    });
+  }else{
+    account=normalizedAccount(snap.data());
   }
-  const data=snap.data();
-  const account={
-    balance:Number.isFinite(data.balance)?data.balance:10000,
-    positions:Array.isArray(data.positions)?data.positions:[]
-  };
-  return {changed:writeLocalAccount(account)};
+
+  lastCloudSnapshot=accountSnapshot(account);
+  const changed=writeLocalAccount(account);
+  localStorage.setItem('freemarket-last-user',user.uid);
+  return {account,changed};
 }
 
 async function saveCloudGame(){
   if(!activeUser||!cloudReady)return;
   const local=readLocalGame();
   if(!local)return;
+  const snapshot=accountSnapshot(local);
+  if(snapshot===lastCloudSnapshot)return;
+
+  if(saveInFlight){
+    saveAgain=true;
+    return;
+  }
+
+  saveInFlight=true;
   try{
+    const clean=normalizedAccount(local);
     await setDoc(doc(db,'users',activeUser.uid),{
       email:activeUser.email||'',
-      balance:Number.isFinite(local.balance)?local.balance:10000,
-      positions:Array.isArray(local.positions)?local.positions:[],
+      balance:clean.balance,
+      positions:clean.positions,
       updatedAt:serverTimestamp()
     },{merge:true});
+    lastCloudSnapshot=accountSnapshot(clean);
   }catch(e){
     console.error('Firestore save failed',e);
+  }finally{
+    saveInFlight=false;
+    if(saveAgain){
+      saveAgain=false;
+      saveCloudGame();
+    }
   }
 }
 
@@ -91,10 +117,19 @@ function installSaveHook(){
   const localSave=window.save;
   window.save=function(){
     const result=localSave.apply(this,arguments);
-    saveCloudGame();
+    queueMicrotask(saveCloudGame);
     return result;
   };
   window.__freeMarketCloudSaveHook=true;
+}
+
+function startDirtyWatcher(){
+  if(window.__freeMarketDirtyWatcher)return;
+  window.__freeMarketDirtyWatcher=setInterval(()=>{
+    if(!activeUser||!cloudReady)return;
+    const local=readLocalGame();
+    if(local&&accountSnapshot(local)!==lastCloudSnapshot)saveCloudGame();
+  },750);
 }
 
 window.openAuth=()=>{document.getElementById('authModal')?.classList.add('show');message('')};
@@ -110,9 +145,14 @@ window.loginAccount=async()=>{
   const password=document.getElementById('authPassword')?.value||'';
   try{await signInWithEmailAndPassword(auth,email,password);message('Logged in.',true);setTimeout(window.closeAuth,500)}catch(e){message('Email or password is incorrect.')}
 };
-window.logoutAccount=()=>signOut(auth);
+window.logoutAccount=async()=>{
+  await saveCloudGame();
+  return signOut(auth);
+};
 
 installSaveHook();
+startDirtyWatcher();
+document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveCloudGame()});
 
 onAuthStateChanged(auth,async user=>{
   const login=document.getElementById('loginBtn');
@@ -129,18 +169,20 @@ onAuthStateChanged(auth,async user=>{
       const result=await ensureCloudAccount(user);
       cloudReady=true;
       installSaveHook();
+      startDirtyWatcher();
       if(result.changed){
         location.reload();
         return;
       }
       const notice=document.querySelector('.hero-side .notice');
-      if(notice)notice.innerHTML='<b>Cloud account connected:</b> your 10,000-point starting balance and portfolio now sync with Firestore when you are signed in. Market activity is still local until the shared market backend is added.';
+      if(notice)notice.innerHTML='<b>Cloud account connected:</b> balance and portfolio are loaded from Firestore and changes sync automatically across devices. Market-wide activity is still local until the shared market backend is added.';
     }catch(e){
       console.error('Firestore account setup failed',e);
       const notice=document.querySelector('.hero-side .notice');
       if(notice)notice.innerHTML='<b>Account signed in, but Firestore could not load.</b> Check the published Firestore rules and database configuration.';
     }
   }else{
+    lastCloudSnapshot='';
     if(login)login.style.display='inline-flex';
     if(userBox)userBox.style.display='none';
     if(userEmail)userEmail.textContent='';
