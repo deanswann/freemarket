@@ -34,7 +34,7 @@
   </div>
   <div id="settings" class="card hidden">
     <h2 style="margin-top:0">Public profile settings</h2>
-    <p class="muted">Your email and raw bet history are never shown publicly. Leaderboard stats are calculated by the backend from settled positions.</p>
+    <p class="muted">Your email, Firebase account ID and raw bet history are never shown publicly. Leaderboard stats are calculated by the backend from settled positions.</p>
     <div class="form">
       <input id="nameInput" maxlength="24" placeholder="Display name (3–24 characters)">
       <label class="check"><input id="optIn" type="checkbox"><span>Show this profile on the public leaderboard. Turning this off removes it from public results.</span></label>
@@ -51,13 +51,13 @@ import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/
 const firebaseConfig={apiKey:'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',authDomain:'freemarket-68274.firebaseapp.com',projectId:'freemarket-68274',storageBucket:'freemarket-68274.firebasestorage.app',messagingSenderId:'130108525153',appId:'1:130108525153:web:69fcce32c2f6eefbb93820',measurementId:'G-F6N8GLFK45'};
 const app=initializeApp(firebaseConfig),auth=getAuth(app),functions=getFunctions(app);
 const getMyProfile=httpsCallable(functions,'getMyProfile'),getPublicProfile=httpsCallable(functions,'getPublicProfile'),updatePublicProfile=httpsCallable(functions,'updatePublicProfile');
-const targetUid=new URLSearchParams(location.search).get('uid')||'';
+const publicId=new URLSearchParams(location.search).get('p')||'';
 const $=id=>document.getElementById(id);const fmt=n=>(Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:2});
 function showError(text){$('loading').classList.add('hidden');$('profile').classList.add('hidden');$('error').textContent=text;$('error').classList.remove('hidden');}
 function render(name,stats,extra={}){$('loading').classList.add('hidden');$('error').classList.add('hidden');$('profile').classList.remove('hidden');$('displayName').textContent=name||'Private profile';$('profit').textContent='◈ '+fmt(stats?.profit);$('accuracy').textContent=fmt(stats?.winRate)+'%';$('record').textContent=(stats?.wins||0)+' / '+(stats?.losses||0);$('resolved').textContent=String(stats?.resolved||0);if(extra.own){$('kind').textContent='YOUR PROFILE';$('subtitle').textContent=extra.optIn?'Public leaderboard profile enabled.':'Private until you opt in to the leaderboard.';$('privateStats').classList.remove('hidden');$('settings').classList.remove('hidden');$('balance').textContent='◈ '+fmt(extra.balance);$('openPositions').textContent=String(extra.openPositions||0);$('amountIn').textContent='◈ '+fmt(stats?.amountIn);$('payout').textContent='◈ '+fmt(stats?.payout);$('nameInput').value=name||'';$('optIn').checked=extra.optIn===true;}else{$('kind').textContent='PUBLIC PROFILE';$('subtitle').textContent='Public FreeMarket prediction record.';}}
 async function loadOwn(){try{const r=await getMyProfile();const d=r.data||{};render(d.displayName,d.stats,{own:true,optIn:d.leaderboardOptIn,balance:d.balance,openPositions:d.openPositions});}catch(e){showError((e.message||'Could not load profile.').replace('FirebaseError: ',''));}}
-async function loadPublic(){try{const r=await getPublicProfile({uid:targetUid});const d=r.data||{};render(d.displayName,d.stats);}catch(e){showError('This profile is not public or does not exist.');}}
+async function loadPublic(){try{const r=await getPublicProfile({publicId});const d=r.data||{};render(d.displayName,d.stats);}catch(e){showError('This profile is not public or does not exist.');}}
 $('saveBtn').addEventListener('click',async()=>{const btn=$('saveBtn'),status=$('saveStatus');btn.disabled=true;status.className='status';status.textContent='Saving…';try{const r=await updatePublicProfile({displayName:$('nameInput').value,leaderboardOptIn:$('optIn').checked});status.className='status good';status.textContent='Profile saved.';const d=r.data||{};$('displayName').textContent=d.displayName;$('subtitle').textContent=d.leaderboardOptIn?'Public leaderboard profile enabled.':'Private until you opt in to the leaderboard.';}catch(e){status.className='status bad';status.textContent=(e.message||'Could not save profile.').replace('FirebaseError: ','');}finally{btn.disabled=false;}});
-if(targetUid)loadPublic();else onAuthStateChanged(auth,user=>{if(user)loadOwn();else showError('Log in on FreeMarket first to view and edit your profile.');});
+if(publicId)loadPublic();else onAuthStateChanged(auth,user=>{if(user)loadOwn();else showError('Log in on FreeMarket first to view and edit your profile.');});
 </script>
 </body></html>
