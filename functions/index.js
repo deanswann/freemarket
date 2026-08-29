@@ -71,6 +71,10 @@ function cleanDisplayName(value){
   return name;
 }
 
+function displayNameKey(name){
+  return name.normalize('NFKC').toLocaleLowerCase('en-US');
+}
+
 exports.placeBet = onCall(async request => {
   const auth=requireUser(request);
   const marketId=cleanText(request.data?.marketId,120);
@@ -198,10 +202,27 @@ exports.updatePublicProfile = onCall(async request => {
   const auth=requireUser(request);
   const displayName=cleanDisplayName(request.data?.displayName);
   const leaderboardOptIn=request.data?.leaderboardOptIn===true;
-  const ref=db.collection('users').doc(auth.uid);
-  const snap=await ref.get();
-  if(!snap.exists) throw new HttpsError('failed-precondition','Account not found.');
-  await ref.update({displayName,leaderboardOptIn,updatedAt:FieldValue.serverTimestamp()});
+  const key=displayNameKey(displayName);
+  const userRef=db.collection('users').doc(auth.uid);
+  const nameRef=db.collection('profileNames').doc(key);
+
+  await db.runTransaction(async tx=>{
+    const [userSnap,nameSnap]=await Promise.all([tx.get(userRef),tx.get(nameRef)]);
+    if(!userSnap.exists) throw new HttpsError('failed-precondition','Account not found.');
+    if(nameSnap.exists&&nameSnap.data()?.uid!==auth.uid) throw new HttpsError('already-exists','That display name is already taken.');
+
+    const userData=userSnap.data();
+    const oldKey=String(userData.displayNameKey||'');
+    if(oldKey&&oldKey!==key){
+      const oldRef=db.collection('profileNames').doc(oldKey);
+      const oldSnap=await tx.get(oldRef);
+      if(oldSnap.exists&&oldSnap.data()?.uid===auth.uid)tx.delete(oldRef);
+    }
+
+    tx.set(nameRef,{uid:auth.uid,displayName,updatedAt:FieldValue.serverTimestamp()});
+    tx.update(userRef,{displayName,displayNameKey:key,leaderboardOptIn,updatedAt:FieldValue.serverTimestamp()});
+  });
+
   return {ok:true,displayName,leaderboardOptIn};
 });
 
