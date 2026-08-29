@@ -102,10 +102,17 @@ async function placeSharedTradeFromUi(){
   return result.data;
 }
 
+function goToMarket(id,side='YES'){
+  if(!id)return;
+  const safeSide=side==='NO'?'NO':'YES';
+  location.href=`./market.html?id=${encodeURIComponent(id)}&side=${safeSide}`;
+}
+
 let unsubscribe=null;
 function startSharedMarkets(){
   if(unsubscribe)unsubscribe();
   unsubscribe=onSnapshot(collection(db,'markets'),applyMarketSnapshot,e=>console.error('Shared market listener failed',e));
+  window.openMarket=goToMarket;
   window.placeTrade=async()=>{
     const btn=document.getElementById('submitTrade');
     if(btn)btn.disabled=true;
