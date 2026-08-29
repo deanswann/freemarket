@@ -32,7 +32,14 @@ function cloudTimeMs(value){
 function pushRuntime(game){
   try{
     window.__freemarketCloudState=game;
-    window.eval('state = window.__freemarketCloudState; render();');
+    window.eval(`
+      state = window.__freemarketCloudState;
+      filtered = function(){
+        const q=document.getElementById('search').value.trim().toLowerCase();
+        return state.markets.filter(m=>(!m.status || m.status==='open') && (activeCat==='All'||m.category===activeCat) && (!q||m.title.toLowerCase().includes(q)||m.category.toLowerCase().includes(q)));
+      };
+      render();
+    `);
     delete window.__freemarketCloudState;
   }catch(e){
     console.error('Runtime market refresh failed',e);
