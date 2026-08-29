@@ -35,6 +35,16 @@ function marketChance(m){
   return Math.max(1,Math.min(99,Math.round((yes/(yes+no))*100)));
 }
 function marketVolume(m){return (Number(m.yesStake)||0)+(Number(m.noStake)||0);}
+function marketWithoutUserOpenPositions(market,positions,marketId){
+  const next={...market};
+  for(const p of (Array.isArray(positions)?positions:[])){
+    if(!p||String(p.marketId||'')!==marketId||p.settled===true||p.cashedOut===true)continue;
+    const amount=Math.max(0,Number(p.amount)||0);
+    if(p.side==='YES')next.yesStake=Math.max(0,(Number(next.yesStake)||0)-amount);
+    else if(p.side==='NO')next.noStake=Math.max(0,(Number(next.noStake)||0)-amount);
+  }
+  return next;
+}
 function publicStats(data){
   const positions=Array.isArray(data?.positions)?data.positions:[];
   const closed=positions.filter(p=>p&&(p.settled===true||p.cashedOut===true));
@@ -93,9 +103,11 @@ exports.placeBet = onCall(async request => {
 
     const previousYesChance=marketChance(market);
     const previousVolume=marketVolume(market);
-    const price=side==='YES'?previousYesChance:100-previousYesChance;
-    const shares=amount/(price/100);
     const positions=Array.isArray(user.positions)?user.positions.slice():[];
+    const pricingMarket=marketWithoutUserOpenPositions(market,positions,marketId);
+    const pricingYesChance=marketChance(pricingMarket);
+    const price=side==='YES'?pricingYesChance:100-pricingYesChance;
+    const shares=amount/(price/100);
     positions.push({positionId:randomBytes(8).toString('hex'),marketId,side,amount,price,shares,time:timeMs,settled:false,cashedOut:false});
 
     const nextMarket={...market};
@@ -146,12 +158,16 @@ exports.cashOutPosition = onCall(async request => {
 
     const previousYesChance=marketChance(market);
     const previousVolume=marketVolume(market);
-    const nextMarket={...market};
-    if(side==='YES') nextMarket.yesStake=Math.max(0,(Number(market.yesStake)||0)-amount);
-    else nextMarket.noStake=Math.max(0,(Number(market.noStake)||0)-amount);
+    const currentSideStake=side==='YES'?(Number(market.yesStake)||0):(Number(market.noStake)||0);
+    if(currentSideStake+1e-9<amount) throw new HttpsError('failed-precondition','Market position data is inconsistent.');
+    const pricingMarket=marketWithoutUserOpenPositions(market,positions,marketId);
+    const pricingYesChance=marketChance(pricingMarket);
+    const exitPrice=side==='YES'?pricingYesChance:100-pricingYesChance;
 
+    const nextMarket={...market};
+    if(side==='YES') nextMarket.yesStake=currentSideStake-amount;
+    else nextMarket.noStake=currentSideStake-amount;
     const newYesChance=marketChance(nextMarket);
-    const exitPrice=side==='YES'?newYesChance:100-newYesChance;
     const gross=shares*(exitPrice/100);
     const fee=gross*CASHOUT_FEE_RATE;
     const payout=Math.max(0,gross-fee);
