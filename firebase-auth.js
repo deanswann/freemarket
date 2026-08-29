@@ -1,6 +1,7 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
+import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',
@@ -15,6 +16,8 @@ const firebaseConfig = {
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
 const db=getFirestore(app);
+const functions=getFunctions(app);
+const cashOutPositionFn=httpsCallable(functions,'cashOutPosition');
 let unsubscribeUser=null;
 
 function message(text,ok=false){
@@ -54,11 +57,23 @@ function ensureNavLinks(){
   }
 }
 
+window.cashOutPortfolioPosition=async(index,marketId)=>{
+  if(!auth.currentUser){alert('Log in first.');return;}
+  if(!confirm('Cash out this position at its current server-calculated value? A 2% cash-out fee applies.'))return;
+  try{
+    const res=await cashOutPositionFn({positionIndex:Number(index),marketId:String(marketId)});
+    const d=res.data||{};
+    alert(`Cash out complete.\nExit price: ${fmt2(d.exitPrice)}%\nFee: ◈ ${fmt2(d.fee)}\nCredited: ◈ ${fmt2(d.payout)}`);
+  }catch(e){
+    alert((e.message||'Cash out failed.').replace('FirebaseError: ',''));
+  }
+};
+
 function enhancedPortfolio(){
   const game=readLocalGame()||{};
-  const all=Array.isArray(game.positions)?game.positions:[];
-  const open=all.filter(p=>!p?.settled);
-  const history=all.filter(p=>p?.settled);
+  const indexed=(Array.isArray(game.positions)?game.positions:[]).map((p,index)=>({...p,__index:index}));
+  const open=indexed.filter(p=>!p?.settled&&!p?.cashedOut);
+  const history=indexed.filter(p=>p?.settled||p?.cashedOut);
   const markets=Array.isArray(game.markets)?game.markets:[];
   const byId=new Map(markets.map(m=>[m.id,m]));
 
@@ -74,7 +89,9 @@ function enhancedPortfolio(){
     rows.innerHTML=open.length?open.slice().reverse().map(p=>{
       const m=byId.get(p.marketId);
       const href='./market.html?id='+encodeURIComponent(String(p.marketId||''));
-      return `<div class="position"><div><div class="pos-title"><a href="${href}" style="color:inherit;text-decoration:none">${esc(m?.title||p.marketId||'Unknown market')}</a></div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b></div></div><div><b>◈ ${fmt2(p.amount)}</b></div><div class="payout">◈ ${fmt2(p.shares)}</div><div>${fmt2(p.price)}%</div></div>`;
+      const cashoutAllowed=(!m?.status||m.status==='open')&&(!m?.closeAtMs||Date.now()<Number(m.closeAtMs));
+      const cashButton=cashoutAllowed?`<button type="button" onclick="cashOutPortfolioPosition(${p.__index},'${esc(String(p.marketId||''))}')" style="margin-top:7px;padding:5px 8px;border:1px solid #3a4652;border-radius:7px;background:#1a222a;color:#dce5ec;cursor:pointer;font-size:11px;font-weight:800">Cash out · 2% fee</button>`:'';
+      return `<div class="position"><div><div class="pos-title"><a href="${href}" style="color:inherit;text-decoration:none">${esc(m?.title||p.marketId||'Unknown market')}</a></div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b></div>${cashButton}</div><div><b>◈ ${fmt2(p.amount)}</b></div><div class="payout">◈ ${fmt2(p.shares)}</div><div>${fmt2(p.price)}%</div></div>`;
     }).join(''):'<div class="empty">No open positions.</div>';
   }
 
@@ -95,8 +112,11 @@ function enhancedPortfolio(){
   if(historyRows){
     historyRows.innerHTML=history.length?history.slice().reverse().map(p=>{
       const m=byId.get(p.marketId);
-      const won=p.won===true;
       const href='./market.html?id='+encodeURIComponent(String(p.marketId||''));
+      if(p.cashedOut){
+        return `<div class="position"><div><div class="pos-title"><a href="${href}" style="color:inherit;text-decoration:none">${esc(m?.title||p.marketId||'Unknown market')}</a></div><div class="pos-sub">Cashed out <b>${esc(p.side)}</b> at ${fmt2(p.exitPrice)}% · fee ◈ ${fmt2(p.cashoutFee)}</div></div><div style="font-weight:850;color:#f1b84b">CASHED OUT</div><div class="payout">◈ ${fmt2(p.payout)}</div><div>${fmt2(p.price)}%</div></div>`;
+      }
+      const won=p.won===true;
       return `<div class="position"><div><div class="pos-title"><a href="${href}" style="color:inherit;text-decoration:none">${esc(m?.title||p.marketId||'Unknown market')}</a></div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b> • Result: <b>${esc(p.result||'—')}</b></div></div><div style="font-weight:850;color:${won?'#18c37e':'#ff5b6e'}">${won?'WON':'LOST'}</div><div class="payout">◈ ${fmt2(p.payout)}</div><div>${fmt2(p.price)}%</div></div>`;
     }).join(''):'<div class="empty">No resolved predictions yet.</div>';
   }
@@ -117,7 +137,7 @@ function pushAccountToRuntime(account){
       render();
       const activeMarkets=state.markets.filter(m=>(!m.status || m.status==='open') && (!m.closeAtMs || Date.now()<m.closeAtMs));
       marketCount.textContent=activeMarkets.length;
-      positionsCount.textContent=state.positions.filter(p=>!p.settled).length;
+      positionsCount.textContent=state.positions.filter(p=>!p.settled&&!p.cashedOut).length;
     `);
     delete window.__freemarketAccount;
     enhancedPortfolio();
@@ -143,7 +163,7 @@ function watchAccount(ref){
     writeLocalAccount(account);
     pushAccountToRuntime(account);
     const notice=document.querySelector('.hero-side .notice');
-    if(notice)notice.innerHTML='<b>Secure cloud account:</b> balance and portfolio are server-authoritative and sync across devices. Bets and global market state are handled through the protected backend.';
+    if(notice)notice.innerHTML='<b>Secure cloud account:</b> balance and portfolio are server-authoritative and sync across devices. Bets, cash outs, and global market state are handled through the protected backend.';
   },e=>console.error('Account listener failed',e));
 }
 
@@ -188,4 +208,4 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
-import('./shared-markets.js?v=20260829-6').catch(e=>console.error('Shared markets module failed',e));
+import('./shared-markets.js?v=20260829-7').catch(e=>console.error('Shared markets module failed',e));
