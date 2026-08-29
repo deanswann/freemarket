@@ -1,6 +1,6 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
 import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
-import { getFirestore, doc, getDoc, setDoc, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
+import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 
 const firebaseConfig = {
   apiKey: 'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',
@@ -12,124 +12,47 @@ const firebaseConfig = {
   measurementId: 'G-F6N8GLFK45'
 };
 
-const app = initializeApp(firebaseConfig);
-const auth = getAuth(app);
-const db = getFirestore(app);
-let activeUser = null;
-let cloudReady = false;
-let lastCloudSnapshot = '';
-let saveInFlight = false;
-let saveAgain = false;
+const app=initializeApp(firebaseConfig);
+const auth=getAuth(app);
+const db=getFirestore(app);
+let unsubscribeUser=null;
 
-function message(text, ok=false){
+function message(text,ok=false){
   const el=document.getElementById('authMessage');
   if(!el)return;
   el.textContent=text;
   el.style.color=ok?'#9af0c8':'#ff9aa6';
 }
 
-function readLocalGame(){
-  try{
-    const raw=localStorage.getItem('freemarket-v4');
-    return raw?JSON.parse(raw):null;
-  }catch(e){return null;}
-}
-
-function normalizedAccount(game){
-  return {
-    balance:Number.isFinite(game?.balance)?game.balance:10000,
-    positions:Array.isArray(game?.positions)?game.positions:[]
-  };
-}
-
-function accountSnapshot(game){
-  return JSON.stringify(normalizedAccount(game));
-}
-
+function readLocalGame(){try{return JSON.parse(localStorage.getItem('freemarket-v4'))||null}catch(e){return null}}
 function writeLocalAccount(account){
   const current=readLocalGame()||{};
-  const before=accountSnapshot(current);
-  const clean=normalizedAccount(account);
-  current.balance=clean.balance;
-  current.positions=clean.positions;
+  const before=JSON.stringify({balance:current.balance,positions:current.positions});
+  current.balance=Number.isFinite(account?.balance)?account.balance:10000;
+  current.positions=Array.isArray(account?.positions)?account.positions:[];
   localStorage.setItem('freemarket-v4',JSON.stringify(current));
-  return before!==accountSnapshot(current);
+  const after=JSON.stringify({balance:current.balance,positions:current.positions});
+  return before!==after;
 }
 
 async function ensureCloudAccount(user){
   const ref=doc(db,'users',user.uid);
   const snap=await getDoc(ref);
-  let account;
-
   if(!snap.exists()){
-    account={balance:10000,positions:[]};
-    await setDoc(ref,{
-      email:user.email||'',
-      ...account,
-      createdAt:serverTimestamp(),
-      updatedAt:serverTimestamp()
-    });
-  }else{
-    account=normalizedAccount(snap.data());
+    await setDoc(ref,{email:user.email||'',balance:10000,positions:[],createdAt:serverTimestamp(),updatedAt:serverTimestamp()});
   }
-
-  lastCloudSnapshot=accountSnapshot(account);
-  const changed=writeLocalAccount(account);
-  localStorage.setItem('freemarket-last-user',user.uid);
-  return {account,changed};
+  return ref;
 }
 
-async function saveCloudGame(){
-  if(!activeUser||!cloudReady)return;
-  const local=readLocalGame();
-  if(!local)return;
-  const snapshot=accountSnapshot(local);
-  if(snapshot===lastCloudSnapshot)return;
-
-  if(saveInFlight){
-    saveAgain=true;
-    return;
-  }
-
-  saveInFlight=true;
-  try{
-    const clean=normalizedAccount(local);
-    await setDoc(doc(db,'users',activeUser.uid),{
-      email:activeUser.email||'',
-      balance:clean.balance,
-      positions:clean.positions,
-      updatedAt:serverTimestamp()
-    },{merge:true});
-    lastCloudSnapshot=accountSnapshot(clean);
-  }catch(e){
-    console.error('Firestore save failed',e);
-  }finally{
-    saveInFlight=false;
-    if(saveAgain){
-      saveAgain=false;
-      saveCloudGame();
-    }
-  }
-}
-
-function installSaveHook(){
-  if(window.__freeMarketCloudSaveHook||typeof window.save!=='function')return;
-  const localSave=window.save;
-  window.save=function(){
-    const result=localSave.apply(this,arguments);
-    queueMicrotask(saveCloudGame);
-    return result;
-  };
-  window.__freeMarketCloudSaveHook=true;
-}
-
-function startDirtyWatcher(){
-  if(window.__freeMarketDirtyWatcher)return;
-  window.__freeMarketDirtyWatcher=setInterval(()=>{
-    if(!activeUser||!cloudReady)return;
-    const local=readLocalGame();
-    if(local&&accountSnapshot(local)!==lastCloudSnapshot)saveCloudGame();
-  },750);
+function watchAccount(ref){
+  if(unsubscribeUser)unsubscribeUser();
+  unsubscribeUser=onSnapshot(ref,snap=>{
+    if(!snap.exists())return;
+    const changed=writeLocalAccount(snap.data());
+    if(changed){location.reload();return;}
+    const notice=document.querySelector('.hero-side .notice');
+    if(notice)notice.innerHTML='<b>Secure cloud account:</b> balance and portfolio are server-authoritative and sync across devices. Bets and global market state are handled through the protected backend.';
+  },e=>console.error('Account listener failed',e));
 }
 
 window.openAuth=()=>{document.getElementById('authModal')?.classList.add('show');message('')};
@@ -145,44 +68,20 @@ window.loginAccount=async()=>{
   const password=document.getElementById('authPassword')?.value||'';
   try{await signInWithEmailAndPassword(auth,email,password);message('Logged in.',true);setTimeout(window.closeAuth,500)}catch(e){message('Email or password is incorrect.')}
 };
-window.logoutAccount=async()=>{
-  await saveCloudGame();
-  return signOut(auth);
-};
-
-installSaveHook();
-startDirtyWatcher();
-document.addEventListener('visibilitychange',()=>{if(document.visibilityState==='hidden')saveCloudGame()});
+window.logoutAccount=()=>signOut(auth);
 
 onAuthStateChanged(auth,async user=>{
   const login=document.getElementById('loginBtn');
   const userBox=document.getElementById('userBox');
   const userEmail=document.getElementById('userEmail');
-  activeUser=user||null;
-  cloudReady=false;
+  if(unsubscribeUser){unsubscribeUser();unsubscribeUser=null;}
 
   if(user){
     if(login)login.style.display='none';
     if(userBox)userBox.style.display='flex';
     if(userEmail)userEmail.textContent=user.email||'Account';
-    try{
-      const result=await ensureCloudAccount(user);
-      cloudReady=true;
-      installSaveHook();
-      startDirtyWatcher();
-      if(result.changed){
-        location.reload();
-        return;
-      }
-      const notice=document.querySelector('.hero-side .notice');
-      if(notice)notice.innerHTML='<b>Cloud account connected:</b> balance and portfolio are loaded from Firestore and changes sync automatically across devices. Global market odds and volume are shared through Firestore when market rules are enabled.';
-    }catch(e){
-      console.error('Firestore account setup failed',e);
-      const notice=document.querySelector('.hero-side .notice');
-      if(notice)notice.innerHTML='<b>Account signed in, but Firestore could not load.</b> Check the published Firestore rules and database configuration.';
-    }
+    try{const ref=await ensureCloudAccount(user);watchAccount(ref);}catch(e){console.error('Firestore account setup failed',e);}
   }else{
-    lastCloudSnapshot='';
     if(login)login.style.display='inline-flex';
     if(userBox)userBox.style.display='none';
     if(userEmail)userEmail.textContent='';
