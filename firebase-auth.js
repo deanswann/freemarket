@@ -73,7 +73,8 @@ function enhancedPortfolio(){
   if(rows){
     rows.innerHTML=open.length?open.slice().reverse().map(p=>{
       const m=byId.get(p.marketId);
-      return `<div class="position"><div><div class="pos-title">${esc(m?.title||p.marketId||'Unknown market')}</div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b></div></div><div><b>◈ ${fmt2(p.amount)}</b></div><div class="payout">◈ ${fmt2(p.shares)}</div><div>${fmt2(p.price)}%</div></div>`;
+      const href='./market.html?id='+encodeURIComponent(String(p.marketId||''));
+      return `<div class="position"><div><div class="pos-title"><a href="${href}" style="color:inherit;text-decoration:none">${esc(m?.title||p.marketId||'Unknown market')}</a></div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b></div></div><div><b>◈ ${fmt2(p.amount)}</b></div><div class="payout">◈ ${fmt2(p.shares)}</div><div>${fmt2(p.price)}%</div></div>`;
     }).join(''):'<div class="empty">No open positions.</div>';
   }
 
@@ -95,7 +96,8 @@ function enhancedPortfolio(){
     historyRows.innerHTML=history.length?history.slice().reverse().map(p=>{
       const m=byId.get(p.marketId);
       const won=p.won===true;
-      return `<div class="position"><div><div class="pos-title">${esc(m?.title||p.marketId||'Unknown market')}</div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b> • Result: <b>${esc(p.result||'—')}</b></div></div><div style="font-weight:850;color:${won?'#18c37e':'#ff5b6e'}">${won?'WON':'LOST'}</div><div class="payout">◈ ${fmt2(p.payout)}</div><div>${fmt2(p.price)}%</div></div>`;
+      const href='./market.html?id='+encodeURIComponent(String(p.marketId||''));
+      return `<div class="position"><div><div class="pos-title"><a href="${href}" style="color:inherit;text-decoration:none">${esc(m?.title||p.marketId||'Unknown market')}</a></div><div class="pos-sub">Your prediction: <b>${esc(p.side)}</b> • Result: <b>${esc(p.result||'—')}</b></div></div><div style="font-weight:850;color:${won?'#18c37e':'#ff5b6e'}">${won?'WON':'LOST'}</div><div class="payout">◈ ${fmt2(p.payout)}</div><div>${fmt2(p.price)}%</div></div>`;
     }).join(''):'<div class="empty">No resolved predictions yet.</div>';
   }
 
