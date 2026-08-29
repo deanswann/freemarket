@@ -32,11 +32,20 @@ function readLocalGame(){
   }catch(e){return null;}
 }
 
+function accountSnapshot(game){
+  return JSON.stringify({
+    balance:Number.isFinite(game?.balance)?game.balance:10000,
+    positions:Array.isArray(game?.positions)?game.positions:[]
+  });
+}
+
 function writeLocalAccount(account){
   const current=readLocalGame()||{};
+  const before=accountSnapshot(current);
   current.balance=Number.isFinite(account.balance)?account.balance:10000;
   current.positions=Array.isArray(account.positions)?account.positions:[];
   localStorage.setItem('freemarket-v4',JSON.stringify(current));
+  return before!==accountSnapshot(current);
 }
 
 async function ensureCloudAccount(user){
@@ -51,16 +60,14 @@ async function ensureCloudAccount(user){
       updatedAt:serverTimestamp()
     };
     await setDoc(ref,account);
-    writeLocalAccount({balance:10000,positions:[]});
-    return {balance:10000,positions:[]};
+    return {changed:writeLocalAccount(account)};
   }
   const data=snap.data();
   const account={
     balance:Number.isFinite(data.balance)?data.balance:10000,
     positions:Array.isArray(data.positions)?data.positions:[]
   };
-  writeLocalAccount(account);
-  return account;
+  return {changed:writeLocalAccount(account)};
 }
 
 async function saveCloudGame(){
@@ -119,12 +126,10 @@ onAuthStateChanged(auth,async user=>{
     if(userBox)userBox.style.display='flex';
     if(userEmail)userEmail.textContent=user.email||'Account';
     try{
-      await ensureCloudAccount(user);
+      const result=await ensureCloudAccount(user);
       cloudReady=true;
       installSaveHook();
-      const key='freemarket-cloud-loaded-'+user.uid;
-      if(sessionStorage.getItem(key)!=='1'){
-        sessionStorage.setItem(key,'1');
+      if(result.changed){
         location.reload();
         return;
       }
