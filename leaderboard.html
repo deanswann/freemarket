@@ -12,7 +12,7 @@
 <main class="shell">
 <div class="eyebrow">COMMUNITY</div><h1 class="title">Leaderboard</h1><div class="muted">Ranked by net profit from resolved play-money predictions. Accuracy is shown alongside it.</div>
 <div class="card"><div class="head"><div>#</div><div>Predictor</div><div>Net profit</div><div>Accuracy</div><div>Resolved</div></div><div id="rows"><div class="empty">Loading leaderboard…</div></div></div>
-<div class="note">Only users who explicitly opt in from their profile appear here. Email addresses and raw bet histories are never shown publicly.</div>
+<div class="note">Only users who explicitly opt in from their profile appear here. Email addresses, Firebase account IDs and raw bet histories are never shown publicly.</div>
 </main>
 <script type="module">
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
@@ -21,7 +21,7 @@ const firebaseConfig={apiKey:'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',authDomai
 const app=initializeApp(firebaseConfig),functions=getFunctions(app),getLeaderboard=httpsCallable(functions,'getLeaderboard');
 const root=document.getElementById('rows');const fmt=n=>(Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:2});
 function cell(text,cls=''){const d=document.createElement('div');if(cls)d.className=cls;d.textContent=text;return d;}
-async function load(){try{const r=await getLeaderboard();const rows=Array.isArray(r.data?.rows)?r.data.rows:[];root.replaceChildren();if(!rows.length){root.appendChild(cell('No public leaderboard profiles yet.','empty'));return;}for(const x of rows){const row=document.createElement('div');row.className='row';const rank=cell(String(x.rank),'rank');const name=document.createElement('div');name.className='name';const a=document.createElement('a');a.href='./profile.html?uid='+encodeURIComponent(x.uid);a.textContent=x.displayName;name.appendChild(a);const p=Number(x.stats?.profit)||0;const profit=cell((p>=0?'+':'')+'◈ '+fmt(p),'profit '+(p>=0?'positive':'negative'));const accuracy=cell(fmt(x.stats?.winRate)+'%');const resolved=cell(String(x.stats?.resolved||0));row.append(rank,name,profit,accuracy,resolved);root.appendChild(row);}}catch(e){root.replaceChildren(cell('Could not load leaderboard.','empty'));}}
+async function load(){try{const r=await getLeaderboard();const rows=Array.isArray(r.data?.rows)?r.data.rows:[];root.replaceChildren();if(!rows.length){root.appendChild(cell('No public leaderboard profiles yet.','empty'));return;}for(const x of rows){const row=document.createElement('div');row.className='row';const rank=cell(String(x.rank),'rank');const name=document.createElement('div');name.className='name';const a=document.createElement('a');a.href='./profile.html?p='+encodeURIComponent(x.publicId);a.textContent=x.displayName;name.appendChild(a);const p=Number(x.stats?.profit)||0;const profit=cell((p>=0?'+':'')+'◈ '+fmt(p),'profit '+(p>=0?'positive':'negative'));const accuracy=cell(fmt(x.stats?.winRate)+'%');const resolved=cell(String(x.stats?.resolved||0));row.append(rank,name,profit,accuracy,resolved);root.appendChild(row);}}catch(e){root.replaceChildren(cell('Could not load leaderboard.','empty'));}}
 load();
 </script>
 </body></html>
