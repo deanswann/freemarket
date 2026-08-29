@@ -28,10 +28,6 @@ function allPositions(account){
   return Array.isArray(account?.positions)?account.positions:[];
 }
 
-function openPositions(account){
-  return allPositions(account).filter(p=>!p?.settled);
-}
-
 function readLocalGame(){try{return JSON.parse(localStorage.getItem('freemarket-v4'))||null}catch(e){return null}}
 function writeLocalAccount(account){
   const current=readLocalGame()||{};
@@ -43,6 +39,20 @@ function writeLocalAccount(account){
 
 function fmt2(n){return (Number(n)||0).toLocaleString('en-US',{maximumFractionDigits:2})}
 function esc(s){return String(s??'').replace(/[&<>"']/g,c=>({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]))}
+
+function ensureNavLinks(){
+  const actions=document.querySelector('.topbar .actions');
+  const portfolio=document.getElementById('portfolioBtn');
+  if(!actions||!portfolio)return;
+  if(!document.getElementById('leaderboardBtn')){
+    const a=document.createElement('a');a.id='leaderboardBtn';a.className='btn';a.href='./leaderboard.html';a.textContent='Leaderboard';a.style.textDecoration='none';
+    portfolio.insertAdjacentElement('afterend',a);
+  }
+  if(!document.getElementById('profileBtn')){
+    const a=document.createElement('a');a.id='profileBtn';a.className='btn';a.href='./profile.html';a.textContent='Profile';a.style.textDecoration='none';
+    document.getElementById('leaderboardBtn').insertAdjacentElement('afterend',a);
+  }
+}
 
 function enhancedPortfolio(){
   const game=readLocalGame()||{};
@@ -94,6 +104,7 @@ function enhancedPortfolio(){
 }
 
 window.renderPortfolio=enhancedPortfolio;
+ensureNavLinks();
 
 function pushAccountToRuntime(account){
   try{
@@ -102,7 +113,7 @@ function pushAccountToRuntime(account){
       state.balance = Number.isFinite(window.__freemarketAccount.balance) ? window.__freemarketAccount.balance : state.balance;
       state.positions = Array.isArray(window.__freemarketAccount.positions) ? window.__freemarketAccount.positions : state.positions;
       render();
-      const activeMarkets=state.markets.filter(m=>!m.status || m.status==='open');
+      const activeMarkets=state.markets.filter(m=>(!m.status || m.status==='open') && (!m.closeAtMs || Date.now()<m.closeAtMs));
       marketCount.textContent=activeMarkets.length;
       positionsCount.textContent=state.positions.filter(p=>!p.settled).length;
     `);
@@ -175,4 +186,4 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
-import('./shared-markets.js?v=20260829-5').catch(e=>console.error('Shared markets module failed',e));
+import('./shared-markets.js?v=20260829-6').catch(e=>console.error('Shared markets module failed',e));
