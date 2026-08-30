@@ -13,15 +13,11 @@
     return /^[a-z0-9-]{1,120}$/.test(id) ? id : '';
   }
 
-  // Remove the obsolete local-demo reset control. Server-authoritative accounts must
-  // never present a control that suggests balances/positions can be reset locally.
   function removeLegacyReset(){
     document.querySelectorAll('[onclick*="resetDemo"]').forEach(el=>el.remove());
     try{window.resetDemo=()=>{console.warn('Legacy demo reset is disabled.');};}catch{}
   }
 
-  // The original prototype card renderer used cloud-backed text inside an HTML string.
-  // Keep the exact visual/mechanical behavior, but HTML-escape all cloud-controlled text.
   if(typeof window.card==='function' && typeof window.yesChance==='function' && typeof window.marketVolume==='function' && typeof window.fmt==='function'){
     window.card=function secureMarketCard(m){
       const id=safeMarketId(m?.id);
@@ -34,75 +30,73 @@
     };
   }
 
-  // True mobile layout: one vertical flow, no compressed desktop columns.
+  // True phone layout. !important is intentional here because shared-markets.js
+  // injects responsive rules later and must not be able to restore desktop columns.
   const style=document.createElement('style');
   style.id='proboraMobileSingleColumn';
   style.textContent=`
-    @media(max-width:700px){
-      html,body{max-width:100%;overflow-x:hidden}
-      .shell{width:100%;max-width:100%;padding:18px 12px 38px}
+    @media(max-width:760px){
+      html,body{width:100%!important;max-width:100%!important;overflow-x:hidden!important}
+      body *{max-width:100%}
+      .shell{width:100%!important;max-width:100%!important;padding:18px 12px 38px!important;margin:0!important}
 
-      .topbar{position:static;display:flex;flex-direction:column;align-items:stretch;gap:10px;padding:12px}
-      .topbar .brand{align-self:flex-start}
+      .topbar{position:static!important;display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:9px!important;padding:12px!important;width:100%!important}
+      .topbar .brand{align-self:flex-start!important}
       .topbar .search{display:none!important}
-      .topbar .actions{display:flex;flex-direction:column;align-items:stretch;gap:7px;width:100%}
-      .topbar .actions .btn,.topbar .user-box{width:100%;max-width:none;justify-content:center}
+      .topbar .actions{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:7px!important;width:100%!important;margin:0!important}
+      .topbar .actions .btn,.topbar .user-box{width:100%!important;max-width:100%!important;justify-content:center!important}
       .topbar .balance{display:none!important}
-      #userEmail{max-width:100%;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
+      #userEmail{max-width:100%!important;overflow:hidden!important;text-overflow:ellipsis!important;white-space:nowrap!important}
 
-      .tabs{display:flex;flex-wrap:wrap;gap:7px;overflow:visible;padding:10px 12px}
-      .tab{flex:1 1 calc(50% - 7px);justify-content:center;text-align:center;min-width:0}
+      .tabs{display:flex!important;flex-direction:column!important;flex-wrap:nowrap!important;gap:6px!important;overflow:visible!important;padding:9px 12px!important;width:100%!important}
+      .tab{display:flex!important;width:100%!important;min-width:0!important;flex:0 0 auto!important;justify-content:flex-start!important;text-align:left!important}
 
-      .hero,.grid,.section-grid,.category-explorer,.portfolio-summary,.quote{display:grid!important;grid-template-columns:1fr!important;width:100%}
-      .hero{gap:12px}
-      .hero-main,.hero-side,.card,.market,.summary-card{width:100%;min-width:0;max-width:100%}
-      .hero-main{padding:22px 18px}
-      .hero-side{padding:18px}
-      .hero h1,.portfolio-title{font-size:30px;line-height:1.08;overflow-wrap:anywhere}
-      .hero p,.portfolio-intro,.notice{overflow-wrap:anywhere}
-      .stats{display:grid;grid-template-columns:1fr;gap:10px}
+      .hero,.grid,.section-grid,.category-explorer,.portfolio-summary,.quote{display:grid!important;grid-template-columns:minmax(0,1fr)!important;grid-auto-flow:row!important;width:100%!important;max-width:100%!important}
+      .hero{gap:12px!important}
+      .hero-main,.hero-side,.card,.market,.summary-card,.market-section{width:100%!important;min-width:0!important;max-width:100%!important}
+      .hero-main{padding:22px 18px!important}
+      .hero-side{padding:18px!important}
+      .hero h1,.portfolio-title{font-size:30px!important;line-height:1.08!important;overflow-wrap:anywhere!important;word-break:normal!important}
+      .hero p,.portfolio-intro,.notice{overflow-wrap:anywhere!important}
+      .stats{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:10px!important;width:100%!important}
 
-      .section-head,.market-section-head,.footer-inner{display:flex!important;flex-direction:column;align-items:flex-start!important;gap:8px}
-      .section-head>*{min-width:0;max-width:100%}
-      .category-explorer{gap:8px}
-      .category-tile{width:100%}
+      .section-head,.market-section-head,.footer-inner{display:flex!important;flex-direction:column!important;align-items:stretch!important;gap:8px!important;width:100%!important}
+      .section-head>*,.market-section-head>*{min-width:0!important;max-width:100%!important}
+      .category-explorer{gap:8px!important}
+      .category-tile{display:block!important;width:100%!important;min-width:0!important}
 
-      .market{padding:14px}
-      .market-top{display:flex;align-items:flex-start;gap:10px}
-      .market-top>div:first-child{min-width:0;flex:1}
-      .market h3{font-size:16px;overflow-wrap:anywhere;word-break:break-word}
-      .prob{flex:0 0 auto;font-size:25px}
-      .meta{display:flex;flex-direction:column;gap:4px;align-items:flex-start}
-      .choices{grid-template-columns:1fr 1fr;gap:7px}
-      .choice{min-width:0}
+      #markets,#markets.home-sections{display:block!important;width:100%!important}
+      .market-section{display:block!important;margin-bottom:26px!important}
+      .section-grid{gap:10px!important}
+      .market{display:block!important;padding:14px!important;margin:0!important}
+      .market-top{display:flex!important;align-items:flex-start!important;gap:10px!important;width:100%!important}
+      .market-top>div:first-child{min-width:0!important;flex:1 1 auto!important}
+      .market h3{font-size:16px!important;overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important}
+      .prob{flex:0 0 auto!important;font-size:25px!important}
+      .meta{display:flex!important;flex-direction:column!important;gap:4px!important;align-items:flex-start!important;width:100%!important}
+      .choices{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:7px!important;width:100%!important}
+      .choice{width:100%!important;min-width:0!important}
 
-      .portfolio-list{width:100%;overflow:visible}
+      .portfolio-summary{gap:10px!important}
+      .portfolio-list{display:block!important;width:100%!important;max-width:100%!important;overflow:visible!important}
       .portfolio-head{display:none!important}
-      .position{display:block!important;width:100%;min-width:0;padding:15px;border-top:1px solid var(--border)}
-      .position>div{display:block!important;width:100%;min-width:0;margin-top:8px}
-      .position>div:first-child{margin-top:0}
-      .pos-title,.pos-sub,.position a{overflow-wrap:anywhere;word-break:break-word}
+      .position{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;padding:15px!important;border-top:1px solid var(--border)!important}
+      .position>div{display:block!important;width:100%!important;min-width:0!important;max-width:100%!important;margin-top:8px!important}
+      .position>div:first-child{margin-top:0!important}
+      .pos-title,.pos-sub,.position a{overflow-wrap:anywhere!important;word-break:break-word!important;white-space:normal!important}
 
-      .modal-backdrop{padding:8px;align-items:flex-start;overflow-y:auto}
-      .modal{width:100%;max-width:100%;max-height:none;margin:8px 0;padding:17px;overflow:hidden}
-      .modal-head{gap:8px}
-      .modal-head>div{min-width:0}
-      .modal h2{overflow-wrap:anywhere}
-      .auth-actions{grid-template-columns:1fr!important}
-      .quick{display:grid;grid-template-columns:1fr 1fr;gap:7px}
-      .amount-label{gap:8px;flex-wrap:wrap}
-      .amount-line input{min-width:0}
+      .modal-backdrop{padding:8px!important;align-items:flex-start!important;overflow-y:auto!important}
+      .modal{width:100%!important;max-width:100%!important;max-height:none!important;margin:8px 0!important;padding:17px!important;overflow:hidden!important}
+      .modal-head{gap:8px!important}
+      .modal-head>div{min-width:0!important}
+      .modal h2{overflow-wrap:anywhere!important;white-space:normal!important}
+      .auth-actions,.trade-switch,.quick{display:grid!important;grid-template-columns:minmax(0,1fr)!important;gap:7px!important;width:100%!important}
+      .amount-label{gap:8px!important;flex-wrap:wrap!important}
+      .amount-line input{min-width:0!important}
 
-      .footer{width:100%}
+      .footer{width:100%!important}
       .footer-links{justify-content:flex-start!important}
-      .toast{left:10px;right:10px;bottom:10px;text-align:center}
-    }
-
-    @media(max-width:420px){
-      .tabs{display:grid;grid-template-columns:1fr 1fr}
-      .tab{width:100%}
-      .choices,.quick{grid-template-columns:1fr}
-      .hero h1,.portfolio-title{font-size:28px}
+      .toast{left:10px!important;right:10px!important;bottom:10px!important;text-align:center!important}
     }
   `;
   document.head.appendChild(style);
