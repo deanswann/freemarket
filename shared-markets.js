@@ -31,6 +31,11 @@ function cloudTimeMs(value){
 
 function installHomepageV2(){
   if(document.getElementById('homepageV2Styles'))return;
+  document.title='Probora — Play-money prediction markets';
+  const homeBrand=document.querySelector('.topbar .brand');
+  if(homeBrand)homeBrand.innerHTML='Pro<span>bora</span>';
+  const accountLabel=document.querySelector('#authModal .category');
+  if(accountLabel)accountLabel.textContent='PROBORA ACCOUNT';
   const style=document.createElement('style');
   style.id='homepageV2Styles';
   style.textContent=`
@@ -62,7 +67,7 @@ function installHomepageV2(){
     const explorer=document.createElement('div');explorer.id='categoryExplorer';explorer.className='category-explorer';sectionHead.insertAdjacentElement('afterend',explorer);
   }
   const footer=document.querySelector('.footer');
-  if(footer)footer.innerHTML='<div class="footer-inner"><div><div class="footer-brand">Free<span>Market</span></div><div class="footer-copy">Independent play-money prediction markets for forecasting and entertainment. Virtual points have no monetary value.</div></div><div class="footer-links"><a href="./about.html">About</a><a href="./rules.html">How it works</a><a href="./terms.html">Terms</a><a href="./privacy.html">Privacy</a></div></div><div class="footer-legal">FreeMarket · Play-money only · Opening probabilities are estimates, not guarantees or financial advice.</div>';
+  if(footer)footer.innerHTML='<div class="footer-inner"><div><div class="footer-brand">Pro<span>bora</span></div><div class="footer-copy">Independent play-money prediction markets for forecasting and entertainment. Virtual points have no monetary value.</div></div><div class="footer-links"><a href="./about.html">About</a><a href="./rules.html">How it works</a><a href="./terms.html">Terms</a><a href="./privacy.html">Privacy</a></div></div><div class="footer-legal">Probora · Play-money only · Opening probabilities are estimates, not guarantees or financial advice.</div>';
 
   window.eval(`
     function homepageOpenMarkets(){return state.markets.filter(m=>(!m.status||m.status==='open')&&(!m.closeAtMs||Date.now()<m.closeAtMs));}
