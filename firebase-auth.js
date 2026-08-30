@@ -1,5 +1,5 @@
 import { initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
-import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
+import { getAuth, createUserWithEmailAndPassword, signInWithEmailAndPassword, signOut, onAuthStateChanged, setPersistence, browserLocalPersistence } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-auth.js';
 import { getFirestore, doc, getDoc, setDoc, onSnapshot, serverTimestamp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-firestore.js';
 import { getFunctions, httpsCallable } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-functions.js';
 
@@ -15,6 +15,9 @@ const firebaseConfig = {
 
 const app=initializeApp(firebaseConfig);
 const auth=getAuth(app);
+const authPersistenceReady=setPersistence(auth,browserLocalPersistence).catch(e=>{
+  console.error('Could not enable persistent login',e);
+});
 const db=getFirestore(app);
 const functions=getFunctions(app);
 const cashOutPositionFn=httpsCallable(functions,'cashOutPosition');
@@ -174,6 +177,7 @@ window.registerAccount=async()=>{
   const password=document.getElementById('authPassword')?.value||'';
   if(!email||password.length<6){message('Enter a valid email and a password with at least 6 characters.');return;}
   try{
+    await authPersistenceReady;
     await createUserWithEmailAndPassword(auth,email,password);
     message('Account created.',true);
     setTimeout(()=>location.reload(),350);
@@ -183,6 +187,7 @@ window.loginAccount=async()=>{
   const email=document.getElementById('authEmail')?.value.trim();
   const password=document.getElementById('authPassword')?.value||'';
   try{
+    await authPersistenceReady;
     await signInWithEmailAndPassword(auth,email,password);
     message('Logged in.',true);
     setTimeout(()=>location.reload(),350);
