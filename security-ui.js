@@ -34,45 +34,6 @@
     };
   }
 
-  // Mobile-only layout improvements. Desktop rules remain untouched.
-  const style=document.createElement('style');
-  style.id='proboraSecurityMobileStyles';
-  style.textContent=`
-    @media(max-width:760px){
-      .topbar{gap:9px;flex-wrap:wrap;padding:11px 12px}
-      .topbar .brand{flex:0 0 auto}
-      .topbar .actions{margin-left:auto;gap:6px;min-width:0;flex-wrap:wrap;justify-content:flex-end}
-      .topbar .actions .btn{padding:8px 9px;font-size:12px}
-      .topbar .user-box{max-width:170px;padding-left:8px;gap:5px}
-      #userEmail{display:block;max-width:92px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap}
-      .tabs{scrollbar-width:none;-webkit-overflow-scrolling:touch}
-      .tabs::-webkit-scrollbar{display:none}
-      .modal-backdrop{padding:10px}
-      .modal{max-height:calc(100dvh - 20px);overflow-y:auto;padding:17px}
-      .modal-head{gap:10px}
-      .auth-actions{grid-template-columns:1fr}
-      .quick{flex-wrap:wrap}
-      .quick button{flex:1 1 64px}
-      .portfolio-list{overflow-x:auto;-webkit-overflow-scrolling:touch}
-      .position{min-width:0}
-      .pos-title,.pos-sub{overflow-wrap:anywhere}
-      .toast{left:12px;right:12px;bottom:12px;text-align:center}
-    }
-    @media(max-width:480px){
-      .topbar .actions{width:100%;margin-left:0;justify-content:flex-start}
-      .topbar .actions .btn,#loginBtn{flex:1 1 auto}
-      .topbar .user-box{max-width:none;flex:1 1 100%;justify-content:space-between}
-      #userEmail{max-width:65vw}
-      .hero-side{padding:18px}
-      .market{padding:14px}
-      .market h3{font-size:16px}
-      .choices{gap:6px}
-      .choice{padding:10px 7px}
-      .section-head{align-items:flex-start}
-    }
-  `;
-  document.head.appendChild(style);
-
   removeLegacyReset();
   document.addEventListener('DOMContentLoaded',removeLegacyReset,{once:true});
 })();
