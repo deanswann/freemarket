@@ -1,0 +1,12 @@
+{
+  "name": "Probora",
+  "short_name": "Probora",
+  "description": "Play-money prediction markets for forecasting and entertainment.",
+  "start_url": "/",
+  "display": "standalone",
+  "background_color": "#0b0d10",
+  "theme_color": "#0b0d10",
+  "icons": [
+    {"src":"/favicon.svg","sizes":"any","type":"image/svg+xml"}
+  ]
+}
