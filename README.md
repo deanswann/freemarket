@@ -1,2 +1,2 @@
-# freemarket
-betting market without real money
+# Probora
+Play-money prediction markets without real-money betting.
