@@ -15,7 +15,16 @@ service cloud.firestore {
       allow read: if signedIn() && request.auth.uid == userId;
       allow create: if signedIn()
                     && request.auth.uid == userId
+                    && request.resource.data.keys().hasOnly([
+                      'email',
+                      'balance',
+                      'positions',
+                      'createdAt',
+                      'updatedAt'
+                    ])
+                    && request.resource.data.email == request.auth.token.email
                     && request.resource.data.balance == 10000
+                    && request.resource.data.positions is list
                     && request.resource.data.positions.size() == 0;
       allow update: if false;
       allow delete: if false;
