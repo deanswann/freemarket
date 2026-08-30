@@ -1,30 +1,31 @@
-import { getApps, getApp, initializeApp } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-app.js';
-import { getAnalytics, isSupported, logEvent } from 'https://www.gstatic.com/firebasejs/12.2.1/firebase-analytics.js';
+// Probora analytics: direct Google Analytics 4 tag.
+// No email addresses, Firebase UIDs, or other account identifiers are sent by custom events.
+(function(){
+  'use strict';
 
-const firebaseConfig={
-  apiKey:'AIzaSyDXr4ryOOT-OHX1np8KIPER6_Nk60okylw',
-  authDomain:'freemarket-68274.firebaseapp.com',
-  projectId:'freemarket-68274',
-  storageBucket:'freemarket-68274.firebasestorage.app',
-  messagingSenderId:'130108525153',
-  appId:'1:130108525153:web:69fcce32c2f6eefbb93820',
-  measurementId:'G-F6N8GLFK45'
-};
+  const MEASUREMENT_ID='G-F6N8GLFK45';
 
-const analyticsReady=(async()=>{
-  try{
-    if(!(await isSupported()))return null;
-    const app=getApps().length?getApp():initializeApp(firebaseConfig);
-    return getAnalytics(app);
-  }catch(e){
-    console.warn('Analytics unavailable',e);
-    return null;
+  window.dataLayer=window.dataLayer||[];
+  window.gtag=window.gtag||function(){window.dataLayer.push(arguments);};
+
+  if(!document.querySelector(`script[src*="googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}"]`)){
+    const script=document.createElement('script');
+    script.async=true;
+    script.src=`https://www.googletagmanager.com/gtag/js?id=${MEASUREMENT_ID}`;
+    document.head.appendChild(script);
   }
-})();
 
-window.proboraTrack=(name,params={})=>{
-  analyticsReady.then(analytics=>{
-    if(!analytics)return;
-    try{logEvent(analytics,String(name),params);}catch(e){console.warn('Analytics event failed',e);}
-  });
-};
+  if(!window.__proboraGa4Configured){
+    window.__proboraGa4Configured=true;
+    window.gtag('js',new Date());
+    window.gtag('config',MEASUREMENT_ID);
+  }
+
+  window.proboraTrack=(name,params={})=>{
+    try{
+      window.gtag('event',String(name),params);
+    }catch(e){
+      console.warn('Analytics event failed',e);
+    }
+  };
+})();
