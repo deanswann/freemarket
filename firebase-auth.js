@@ -213,4 +213,5 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
-import('./shared-markets.js?v=20260829-7').catch(e=>console.error('Shared markets module failed',e));
+await import('./security-ui.js?v=20260830-1').catch(e=>console.error('Security/mobile layer failed',e));
+import('./shared-markets.js?v=20260830-2').catch(e=>console.error('Shared markets module failed',e));
