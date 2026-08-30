@@ -1,4 +1,5 @@
 const { onCall, HttpsError } = require('firebase-functions/v2/https');
+const { onSchedule } = require('firebase-functions/v2/scheduler');
 const { initializeApp } = require('firebase-admin/app');
 const { getFirestore, FieldValue } = require('firebase-admin/firestore');
 const { randomBytes } = require('node:crypto');
@@ -44,6 +45,23 @@ function marketWithoutUserOpenPositions(market,positions,marketId){
     else if(p.side==='NO')next.noStake=Math.max(0,(Number(next.noStake)||0)-amount);
   }
   return next;
+}
+function closeAtMs(market){
+  return market?.closeAt?.toMillis?market.closeAt.toMillis():Number(market?.closeAtMs)||0;
+}
+async function closeExpiredMarkets(){
+  const now=Date.now();
+  const snap=await db.collection('markets').where('status','==','open').limit(500).get();
+  const expired=snap.docs.filter(doc=>{const ms=closeAtMs(doc.data());return ms>0&&ms<=now;});
+  if(!expired.length)return {checked:snap.size,closed:0};
+  for(let i=0;i<expired.length;i+=400){
+    const batch=db.batch();
+    for(const doc of expired.slice(i,i+400)){
+      batch.update(doc.ref,{status:'closed',closedAt:FieldValue.serverTimestamp(),closedReason:'scheduled-close',updatedAt:FieldValue.serverTimestamp()});
+    }
+    await batch.commit();
+  }
+  return {checked:snap.size,closed:expired.length};
 }
 function publicStats(data){
   const positions=Array.isArray(data?.positions)?data.positions:[];
@@ -94,7 +112,7 @@ exports.placeBet = onCall(async request => {
     const market=marketSnap.data();
     const marketStatus=market.status||'open';
     if(marketStatus!=='open') throw new HttpsError('failed-precondition','Market is closed.');
-    const closeAt=market.closeAt?.toMillis?market.closeAt.toMillis():Number(market.closeAtMs)||0;
+    const closeAt=closeAtMs(market);
     if(closeAt&&Date.now()>=closeAt) throw new HttpsError('failed-precondition','Market has reached its closing time.');
 
     const user=userSnap.data();
@@ -142,7 +160,7 @@ exports.cashOutPosition = onCall(async request => {
 
     const market=marketSnap.data();
     const marketStatus=market.status||'open';
-    const closeAt=market.closeAt?.toMillis?market.closeAt.toMillis():Number(market.closeAtMs)||0;
+    const closeAt=closeAtMs(market);
     if(marketStatus!=='open'||(closeAt&&Date.now()>=closeAt)) throw new HttpsError('failed-precondition','Cash out is only available while the market is open.');
 
     const user=userSnap.data();
@@ -339,6 +357,16 @@ exports.closeMarket = onCall(async request => {
   const snap=await ref.get();
   if(!snap.exists) throw new HttpsError('not-found','Market not found.');
   if(snap.data().status==='resolved') throw new HttpsError('failed-precondition','Market already resolved.');
-  await ref.update({status:'closed',updatedAt:FieldValue.serverTimestamp()});
+  await ref.update({status:'closed',closedAt:FieldValue.serverTimestamp(),closedReason:'admin',updatedAt:FieldValue.serverTimestamp()});
   return {ok:true};
+});
+
+exports.runMarketSafetySweep = onCall(async request => {
+  requireAdmin(request);
+  return {ok:true,...await closeExpiredMarkets()};
+});
+
+exports.marketSafetySweep = onSchedule({schedule:'every 5 minutes',timeZone:'UTC',retryCount:0,maxInstances:1},async()=>{
+  const result=await closeExpiredMarkets();
+  console.log('marketSafetySweep',result);
 });
