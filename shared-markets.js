@@ -29,8 +29,37 @@ function cloudTimeMs(value){
   return Number(value)||0;
 }
 
+function installBrandMetadata(){
+  const head=document.head;
+  const ensureLink=(rel,href,extra={})=>{
+    let el=head.querySelector(`link[rel="${rel}"]`);
+    if(!el){el=document.createElement('link');el.rel=rel;head.appendChild(el);}
+    el.href=href;Object.entries(extra).forEach(([k,v])=>el.setAttribute(k,v));
+  };
+  const ensureMeta=(selector,attrs)=>{
+    let el=head.querySelector(selector);
+    if(!el){el=document.createElement('meta');head.appendChild(el);}
+    Object.entries(attrs).forEach(([k,v])=>el.setAttribute(k,v));
+  };
+  ensureLink('icon','/favicon.svg',{type:'image/svg+xml'});
+  ensureLink('manifest','/site.webmanifest');
+  ensureLink('canonical','https://probora.org/');
+  ensureMeta('meta[name="description"]',{name:'description',content:'Probora is a play-money prediction market for forecasting sports, markets, politics, technology and more.'});
+  ensureMeta('meta[name="theme-color"]',{name:'theme-color',content:'#0b0d10'});
+  ensureMeta('meta[property="og:title"]',{property:'og:title',content:'Probora — Play-money prediction markets'});
+  ensureMeta('meta[property="og:description"]',{property:'og:description',content:'Predict what happens next with virtual points across sports, markets, politics, technology and more.'});
+  ensureMeta('meta[property="og:type"]',{property:'og:type',content:'website'});
+  ensureMeta('meta[property="og:url"]',{property:'og:url',content:'https://probora.org/'});
+  ensureMeta('meta[property="og:image"]',{property:'og:image',content:'https://probora.org/favicon.svg'});
+  ensureMeta('meta[name="twitter:card"]',{name:'twitter:card',content:'summary'});
+  ensureMeta('meta[name="twitter:title"]',{name:'twitter:title',content:'Probora — Play-money prediction markets'});
+  ensureMeta('meta[name="twitter:description"]',{name:'twitter:description',content:'Predict what happens next with virtual points.'});
+  ensureMeta('meta[name="twitter:image"]',{name:'twitter:image',content:'https://probora.org/favicon.svg'});
+}
+
 function installHomepageV2(){
   if(document.getElementById('homepageV2Styles'))return;
+  installBrandMetadata();
   document.title='Probora — Play-money prediction markets';
   const homeBrand=document.querySelector('.topbar .brand');
   if(homeBrand)homeBrand.innerHTML='Pro<span>bora</span>';
