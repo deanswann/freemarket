@@ -66,6 +66,7 @@ window.cashOutPortfolioPosition=async(index,marketId)=>{
   try{
     const res=await cashOutPositionFn({positionIndex:Number(index),marketId:String(marketId)});
     const d=res.data||{};
+    window.proboraTrack?.('cashout',{market_id:String(marketId),payout:Number(d.payout)||0,fee:Number(d.fee)||0});
     alert(`Cash out complete.\nExit price: ${fmt2(d.exitPrice)}%\nFee: ◈ ${fmt2(d.fee)}\nCredited: ◈ ${fmt2(d.payout)}`);
   }catch(e){
     alert((e.message||'Cash out failed.').replace('FirebaseError: ',''));
@@ -179,6 +180,7 @@ window.registerAccount=async()=>{
   try{
     await authPersistenceReady;
     await createUserWithEmailAndPassword(auth,email,password);
+    window.proboraTrack?.('sign_up',{method:'password'});
     message('Account created.',true);
     setTimeout(()=>location.reload(),350);
   }catch(e){message(e.message.replace('Firebase: ','').replace(/\(auth\/.+\)\.?/,'').trim())}
@@ -189,6 +191,7 @@ window.loginAccount=async()=>{
   try{
     await authPersistenceReady;
     await signInWithEmailAndPassword(auth,email,password);
+    window.proboraTrack?.('login',{method:'password'});
     message('Logged in.',true);
     setTimeout(()=>location.reload(),350);
   }catch(e){message('Email or password is incorrect.')}
@@ -213,5 +216,6 @@ onAuthStateChanged(auth,async user=>{
   }
 });
 
+await import('./analytics.js?v=20260830-1').catch(e=>console.error('Analytics failed',e));
 await import('./security-ui.js?v=20260830-1').catch(e=>console.error('Security/mobile layer failed',e));
 import('./shared-markets.js?v=20260830-2').catch(e=>console.error('Shared markets module failed',e));
