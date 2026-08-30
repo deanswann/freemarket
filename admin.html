@@ -3,7 +3,7 @@
 <head>
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width,initial-scale=1">
-<title>FreeMarket Admin</title>
+<title>Probora Admin</title>
 <style>
 :root{--bg:#0b0d10;--panel:#11151a;--panel2:#151a20;--border:#252c35;--text:#f5f7fa;--muted:#9aa5b1;--green:#18c37e;--red:#ff5b6e;--amber:#f1b84b}*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,sans-serif;background:var(--bg);color:var(--text)}button,input,select,textarea{font:inherit}.wrap{max-width:1180px;margin:0 auto;padding:30px 20px 60px}.top{display:flex;justify-content:space-between;gap:20px;align-items:flex-start;margin-bottom:22px}.top h1{margin:0 0 6px;font-size:30px}.muted{color:var(--muted)}.back{color:#b9c3cc;text-decoration:none;border:1px solid var(--border);padding:9px 12px;border-radius:9px;background:var(--panel)}.card{background:var(--panel);border:1px solid var(--border);border-radius:16px;padding:20px;margin-bottom:16px}.hidden{display:none!important}.grid{display:grid;grid-template-columns:1fr 1fr;gap:12px}.full{grid-column:1/-1}input,select,textarea{width:100%;background:var(--panel2);color:white;border:1px solid #2a323b;border-radius:10px;padding:11px;outline:none}textarea{min-height:90px;resize:vertical}.btn{border:0;border-radius:9px;padding:10px 12px;font-weight:800;cursor:pointer;background:var(--green);color:#07110d}.btn.secondary{background:#222a32;color:#fff;border:1px solid #303a45}.btn.danger{background:var(--red);color:#fff}.btn:disabled{opacity:.4;cursor:not-allowed}.status{padding:11px 13px;border-radius:10px;background:var(--panel2);border:1px solid var(--border);white-space:pre-wrap;margin-bottom:16px}.stats{display:grid;grid-template-columns:repeat(4,1fr);gap:12px;margin-bottom:16px}.stat{background:var(--panel);border:1px solid var(--border);border-radius:14px;padding:16px}.stat span{display:block;color:var(--muted);font-size:12px;margin-bottom:5px}.stat strong{font-size:24px}.section-head{display:flex;justify-content:space-between;gap:15px;align-items:center;margin-bottom:14px}.section-head h2{margin:0}.tools{display:flex;gap:8px;flex-wrap:wrap}.tools input{width:min(330px,60vw)}.table-wrap{overflow:auto;border:1px solid var(--border);border-radius:12px}.table{min-width:920px}.row{display:grid;grid-template-columns:2.5fr .8fr .65fr .8fr 1.1fr 1fr;gap:12px;align-items:center;padding:13px 14px;border-top:1px solid var(--border)}.row:first-child{border-top:0}.head{background:#0f1318;color:var(--muted);font-size:11px;text-transform:uppercase;letter-spacing:.6px}.market-title{font-weight:750}.market-id{font-size:11px;color:var(--muted);margin-top:4px}.badge{display:inline-flex;padding:4px 8px;border-radius:999px;font-size:11px;font-weight:800;text-transform:uppercase}.badge.open{background:#0d2a20;color:#8ce7bd}.badge.closed{background:#332918;color:#ffd78a}.badge.resolving{background:#332918;color:#ffd78a}.badge.resolved{background:#252b32;color:#bdc7d0}.actions{display:flex;gap:6px;justify-content:flex-end}.actions .btn{padding:7px 9px;font-size:12px}.empty{padding:30px;text-align:center;color:var(--muted)}.manage{margin-top:16px;border-top:1px solid var(--border);padding-top:16px}.manage-title{font-weight:800;margin-bottom:5px}.manage-meta{color:var(--muted);font-size:12px;line-height:1.55}.manage-actions{display:flex;gap:8px;flex-wrap:wrap;margin-top:13px}.rule{background:var(--panel2);border:1px solid var(--border);padding:11px;border-radius:9px;margin-top:10px;font-size:13px;line-height:1.5}.success{color:#9af0c8}.error{color:#ff9aa6}@media(max-width:760px){.top{flex-direction:column}.stats{grid-template-columns:1fr 1fr}.grid{grid-template-columns:1fr}.full{grid-column:auto}.tools{width:100%}.tools input{width:100%}}
 </style>
@@ -11,8 +11,8 @@
 <body>
 <div class="wrap">
   <div class="top">
-    <div><h1>FreeMarket Admin</h1><div class="muted">Market management. Every write is verified again by Firebase on the server.</div></div>
-    <a class="back" href="./">← FreeMarket</a>
+    <div><h1>Probora Admin</h1><div class="muted">Market management. Every write is verified again by Firebase on the server.</div></div>
+    <a class="back" href="./">← Probora</a>
   </div>
 
   <div id="denied" class="card"><b>Checking admin access…</b></div>
@@ -206,7 +206,7 @@ $('statusFilter').addEventListener('change',renderRows);
 
 onAuthStateChanged(auth,async user=>{
   const denied=$('denied'),panel=$('panel');
-  if(!user){denied.textContent='Not signed in. Log in on FreeMarket first, then return here.';return;}
+  if(!user){denied.textContent='Not signed in. Log in on Probora first, then return here.';return;}
   try{
     const token=await getIdTokenResult(user,true);
     if(token.claims.admin!==true){denied.textContent='Access denied. This account is not an administrator.';return;}
