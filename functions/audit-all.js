@@ -70,6 +70,7 @@ function num(v){const n=Number(v);return Number.isFinite(n)?n:0;}
 
   const stakeProblems=[];
   for(const m of markets){
+    if(String(m.status||'open')!=='open')continue;
     const expectedYes=openPositionStake.get(m.id+'|YES')||0;
     const expectedNo=openPositionStake.get(m.id+'|NO')||0;
     const actualYes=Math.max(0,num(m.yesStake));
